@@ -1,0 +1,9 @@
+FLEXBOX CHEAT SHEET
+===================
+display: flex
+flex-direction: row | column
+justify-content: flex-start | center | space-between
+align-items: stretch | center | flex-start
+gap: 1rem
+
+Common fix: min-width: 0 on flex children to allow shrinking.

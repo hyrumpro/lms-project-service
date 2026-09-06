@@ -1,0 +1,1 @@
+ALTER TYPE "public"."enrollment_source" ADD VALUE 'subscription';

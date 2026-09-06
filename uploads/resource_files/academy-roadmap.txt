@@ -1,0 +1,9 @@
+ACADEMY LMS — WEB BOOTCAMP ROADMAP
+==================================
+1. HTML & CSS foundations  (weeks 1-2)
+2. Responsive layouts      (week 3)
+3. JavaScript basics       (weeks 4-5)
+4. Final project + deploy  (week 6)
+
+Tip: mark lessons complete as you go — your certificate
+issues automatically at 100%.

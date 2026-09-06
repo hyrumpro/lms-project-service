@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: academy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: academy
+    ports:
+      - "5433:5432" # host 5433; 5432 is occupied by another project's container
+    volumes:
+      - academy_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d academy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  academy_pgdata:
