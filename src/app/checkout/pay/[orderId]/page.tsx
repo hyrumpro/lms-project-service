@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft, Landmark, ShieldCheck } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
@@ -66,21 +68,30 @@ export default async function MockGatewayPage({ params }: { params: Params }) {
         </Badge>
       </div>
 
-      <div className="rounded-xl border bg-card p-5">
-        <p className="kicker mb-3">Order summary</p>
+      <Alert>
+        <AlertTitle>Test mode</AlertTitle>
+        <AlertDescription>Sandbox Bank does not move real money. Approve or decline this order to continue.</AlertDescription>
+      </Alert>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Order summary</CardTitle>
+        </CardHeader>
+        <CardContent>
         <ul className="flex flex-col gap-1.5 text-sm">
           {items.map((item) => (
             <li key={item.id} className="flex justify-between gap-4">
               <span className="truncate">{item.titleSnapshot}</span>
-              <span>${(item.unitPrice / 100).toFixed(2)}</span>
+              <span className="tabular-nums">${(item.unitPrice / 100).toFixed(2)}</span>
             </li>
           ))}
         </ul>
         <div className="mt-3 flex justify-between border-t pt-3 font-semibold">
           <span>Total{order.tax > 0 ? " (incl. tax)" : ""}</span>
-          <span>${(order.total / 100).toFixed(2)}</span>
+          <span className="tabular-nums">${(order.total / 100).toFixed(2)}</span>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <MockPayButtons orderId={orderId} />
 

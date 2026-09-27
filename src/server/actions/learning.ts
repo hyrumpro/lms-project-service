@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -12,15 +12,13 @@ import {
   enrollments,
   lessonProgress,
   lessons,
-  questions,
-  quizResults,
-  quizzes,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
   generateCertificateCode,
   recomputeCourseProgress,
 } from "@/lib/learning";
+import { gradeQuiz } from "@/server/services/quiz-submit";
 
 export type LearnResult = { ok: true } | { ok: false; error: string };
 
@@ -60,8 +58,12 @@ export async function markLessonVisited(courseId: string, lessonId: string): Pro
   return { ok: true };
 }
 
-/** Manual mark-complete (legacy update_watch_history_manually). */
-export async function markLessonComplete(courseId: string, lessonId: string): Promise<LearnResult> {
+/** Manual mark-complete toggle (legacy parity with update_watch_history_manually). */
+export async function markLessonComplete(
+  courseId: string,
+  lessonId: string,
+  forceState?: boolean,
+): Promise<LearnResult & { isCompleted?: boolean }> {
   const guard = await requireEnrolled(courseId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { userId } = guard;
@@ -73,12 +75,20 @@ export async function markLessonComplete(courseId: string, lessonId: string): Pr
     .limit(1);
   if (!lesson) return { ok: false, error: "not_found" };
 
+  const [current] = await db
+    .select({ isCompleted: lessonProgress.isCompleted })
+    .from(lessonProgress)
+    .where(and(eq(lessonProgress.userId, userId), eq(lessonProgress.lessonId, lessonId)))
+    .limit(1);
+
+  const nextState = forceState !== undefined ? forceState : !current?.isCompleted;
+
   await db
     .insert(lessonProgress)
-    .values({ userId, lessonId, isCompleted: true })
+    .values({ userId, lessonId, isCompleted: nextState })
     .onConflictDoUpdate({
       target: [lessonProgress.userId, lessonProgress.lessonId],
-      set: { isCompleted: true, updatedAt: new Date() },
+      set: { isCompleted: nextState, updatedAt: new Date() },
     });
 
   const stats = await recomputeCourseProgress(userId, courseId);
@@ -86,7 +96,7 @@ export async function markLessonComplete(courseId: string, lessonId: string): Pr
   const { evaluateBadges } = await import("@/server/actions/platform");
   await evaluateBadges(userId);
   revalidatePath("/learn");
-  return { ok: true };
+  return { ok: true, isCompleted: nextState };
 }
 
 /**
@@ -156,61 +166,14 @@ export async function submitQuiz(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { userId } = guard;
 
-  const [lesson] = await db
-    .select()
-    .from(lessons)
-    .where(and(eq(lessons.id, input.lessonId), eq(lessons.courseId, input.courseId)))
-    .limit(1);
-  if (!lesson || lesson.type !== "quiz") return { ok: false, error: "not_found" };
-
-  const [quiz] = await db.select().from(quizzes).where(eq(quizzes.lessonId, lesson.id)).limit(1);
-  if (!quiz) return { ok: false, error: "not_found" };
-
-  const attempts = await db
-    .select({ id: quizResults.id })
-    .from(quizResults)
-    .where(and(eq(quizResults.quizId, quiz.id), eq(quizResults.userId, userId)));
-  const maxAttempts = lesson.quizMaxAttempts;
-  if (attempts.length >= maxAttempts) {
-    return { ok: false, error: "no_attempts_left" };
-  }
-
-  const questionRows = await db
-    .select()
-    .from(questions)
-    .where(eq(questions.quizId, quiz.id))
-    .orderBy(asc(questions.order));
-
-  // legacy grading: exact match of sorted answer arrays
-  const graded = questionRows.map((question) => {
-    const submitted = [...(input.answers[question.id] ?? [])].sort();
-    const correct = [...question.correctAnswers].sort();
-    const status =
-      submitted.length === correct.length && submitted.every((v, i) => v === correct[i]) ? 1 : 0;
-    return { questionId: question.id, submitted, correct, status };
-  });
-  const totalMarks = questionRows.length;
-  const obtainedMarks = graded.reduce((sum, g) => sum + g.status, 0);
-
-  await db.insert(quizResults).values({
-    quizId: quiz.id,
-    userId,
-    answers: graded,
-    obtainedMarks,
-    totalMarks,
-    isSubmitted: true,
-  });
-
-  await db
-    .insert(courseProgress)
-    .values({ userId, courseId: input.courseId })
-    .onConflictDoNothing();
-
-  const attemptsLeft = maxAttempts - attempts.length - 1;
+  const graded = await gradeQuiz(userId, input);
+  if (!graded.ok) return graded;
+  const stats = await recomputeCourseProgress(userId, input.courseId);
+  if (stats.percent >= 100) await issueCertificateIfEligible(userId, input.courseId);
   const { evaluateBadges } = await import("@/server/actions/platform");
   await evaluateBadges(userId);
   revalidatePath("/learn");
-  return { ok: true, obtainedMarks, totalMarks, attemptsLeft, answers: graded };
+  return graded;
 }
 
 /** Issues the certificate once the course is complete (spec §7.10). */
@@ -224,6 +187,22 @@ async function issueCertificateIfEligible(userId: string, courseId: string) {
 
   const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
   if (!course) return null;
+
+  const system = await import("@/lib/settings").then((mod) => mod.getSystemSettings());
+  const threshold = course.certificateQuizThreshold ?? system.certificateQuizThreshold;
+  if (threshold > 0) {
+    const [progress] = await db
+      .select({ quizSummary: courseProgress.quizSummary })
+      .from(courseProgress)
+      .where(and(eq(courseProgress.userId, userId), eq(courseProgress.courseId, courseId)))
+      .limit(1);
+    const scores = progress?.quizSummary ?? [];
+    const best = scores.reduce((max, row) => {
+      const pct = row.totalMarks === 0 ? 0 : Math.round((row.obtainedMarks / row.totalMarks) * 100);
+      return Math.max(max, pct);
+    }, 0);
+    if (scores.length === 0 || best < threshold) return null;
+  }
 
   const [created] = await db
     .insert(certificate)

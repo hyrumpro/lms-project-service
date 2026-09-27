@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -12,6 +12,7 @@ import {
   courseInstructors,
   courses,
   lessons,
+  notifications,
   payouts,
   postCategories,
   posts,
@@ -43,6 +44,23 @@ async function assertOwnsCourse(userId: string, courseId: string, isAdmin: boole
     .select({ instructorId: courseInstructors.instructorId })
     .from(courseInstructors)
     .where(and(eq(courseInstructors.courseId, courseId), eq(courseInstructors.instructorId, userId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+/** Primary author gate (for instructor assignment & deletion). */
+async function assertIsCourseOwner(userId: string, courseId: string, isAdmin: boolean) {
+  if (isAdmin) return true;
+  const [row] = await db
+    .select({ isOwner: courseInstructors.isOwner })
+    .from(courseInstructors)
+    .where(
+      and(
+        eq(courseInstructors.courseId, courseId),
+        eq(courseInstructors.instructorId, userId),
+        eq(courseInstructors.isOwner, true),
+      ),
+    )
     .limit(1);
   return Boolean(row);
 }
@@ -92,7 +110,8 @@ export async function createCourse(input: z.infer<typeof basicsSchema>): Promise
     categoryId: parsed.data.categoryId,
     level: parsed.data.level,
     language: parsed.data.language,
-    status: "draft",
+    status: guard.isAdmin ? "active" : "draft", // legacy: admin-created courses skip moderation
+    createdByAdmin: guard.isAdmin,
   });
   await db.insert(courseInstructors).values({
     courseId,
@@ -101,6 +120,186 @@ export async function createCourse(input: z.infer<typeof basicsSchema>): Promise
   });
   revalidatePath("/studio/courses");
   return { ok: true, courseId };
+}
+
+export async function addCourseInstructorByEmail(
+  courseId: string,
+  email: string,
+): Promise<StudioResult> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes("@")) return { ok: false, error: "invalid_email" };
+  const [found] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(sql`lower(${user.email}) = ${normalized}`)
+    .limit(1);
+  if (!found) return { ok: false, error: "user_not_found" };
+  return addCourseInstructor(courseId, found.id);
+}
+
+export async function addCourseInstructor(
+  courseId: string,
+  instructorId: string,
+): Promise<StudioResult> {
+  const guard = await requireInstructor();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (!(await assertIsCourseOwner(guard.userId, courseId, guard.isAdmin))) {
+    return { ok: false, error: "forbidden" };
+  }
+
+  const [targetUser] = await db
+    .select({ id: user.id, isInstructor: user.isInstructor, role: user.role })
+    .from(user)
+    .where(eq(user.id, instructorId))
+    .limit(1);
+  if (!targetUser || (!targetUser.isInstructor && targetUser.role !== "admin")) {
+    return { ok: false, error: "user_not_instructor" };
+  }
+
+  const [existing] = await db
+    .select()
+    .from(courseInstructors)
+    .where(
+      and(
+        eq(courseInstructors.courseId, courseId),
+        eq(courseInstructors.instructorId, instructorId),
+      ),
+    )
+    .limit(1);
+  if (existing) return { ok: false, error: "already_instructor" };
+
+  await db.insert(courseInstructors).values({
+    courseId,
+    instructorId,
+    isOwner: false,
+  });
+
+  await db
+    .update(courses)
+    .set({ multiInstructor: true, updatedAt: new Date() })
+    .where(eq(courses.id, courseId));
+
+  await db.insert(notifications).values({
+    userId: instructorId,
+    type: "course_co_instructor",
+    title: "Added as co-instructor",
+    body: "You have been added as an instructor for a course.",
+    url: "/studio/courses",
+  });
+
+  revalidatePath(`/studio/courses/${courseId}`);
+  revalidatePath(`/admin/courses/${courseId}`);
+  return { ok: true };
+}
+
+export async function removeCourseInstructor(
+  courseId: string,
+  instructorId: string,
+): Promise<StudioResult> {
+  const guard = await requireInstructor();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (!(await assertIsCourseOwner(guard.userId, courseId, guard.isAdmin))) {
+    return { ok: false, error: "forbidden" };
+  }
+
+  const [existing] = await db
+    .select()
+    .from(courseInstructors)
+    .where(
+      and(
+        eq(courseInstructors.courseId, courseId),
+        eq(courseInstructors.instructorId, instructorId),
+      ),
+    )
+    .limit(1);
+  if (!existing) return { ok: false, error: "not_found" };
+
+  if (existing.isOwner) {
+    return { ok: false, error: "cannot_remove_primary_owner" };
+  }
+
+  await db
+    .delete(courseInstructors)
+    .where(
+      and(
+        eq(courseInstructors.courseId, courseId),
+        eq(courseInstructors.instructorId, instructorId),
+      ),
+    );
+
+  const [remaining] = await db
+    .select({ total: count() })
+    .from(courseInstructors)
+    .where(eq(courseInstructors.courseId, courseId));
+
+  if ((remaining?.total ?? 0) <= 1) {
+    await db
+      .update(courses)
+      .set({ multiInstructor: false, updatedAt: new Date() })
+      .where(eq(courses.id, courseId));
+  }
+
+  revalidatePath(`/studio/courses/${courseId}`);
+  revalidatePath(`/admin/courses/${courseId}`);
+  return { ok: true };
+}
+
+export async function changeCourseAuthor(
+  courseId: string,
+  newAuthorId: string,
+): Promise<StudioResult> {
+  const guard = await requireInstructor();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (!(await assertIsCourseOwner(guard.userId, courseId, guard.isAdmin))) {
+    return { ok: false, error: "forbidden" };
+  }
+
+  const [targetUser] = await db
+    .select({ id: user.id, isInstructor: user.isInstructor, role: user.role })
+    .from(user)
+    .where(eq(user.id, newAuthorId))
+    .limit(1);
+  if (!targetUser || (!targetUser.isInstructor && targetUser.role !== "admin")) {
+    return { ok: false, error: "user_not_instructor" };
+  }
+
+  await db
+    .update(courseInstructors)
+    .set({ isOwner: false })
+    .where(eq(courseInstructors.courseId, courseId));
+
+  const [existing] = await db
+    .select()
+    .from(courseInstructors)
+    .where(
+      and(
+        eq(courseInstructors.courseId, courseId),
+        eq(courseInstructors.instructorId, newAuthorId),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(courseInstructors)
+      .set({ isOwner: true })
+      .where(
+        and(
+          eq(courseInstructors.courseId, courseId),
+          eq(courseInstructors.instructorId, newAuthorId),
+        ),
+      );
+  } else {
+    await db.insert(courseInstructors).values({
+      courseId,
+      instructorId: newAuthorId,
+      isOwner: true,
+    });
+  }
+
+  revalidatePath(`/studio/courses/${courseId}`);
+  revalidatePath(`/admin/courses/${courseId}`);
+  return { ok: true };
 }
 
 const mediaSchema = z.object({
@@ -240,10 +439,13 @@ const lessonSchema = z.object({
   courseId: z.string(),
   sectionId: z.string(),
   title: z.string().trim().min(2).max(160),
-  type: z.enum(["video", "audio", "document", "text", "quiz"]),
-  provider: z.enum(["youtube", "vimeo", "html5", "iframe", "external", "s3", "stream"]).optional(),
+  type: z.enum(["video", "audio", "document", "text", "quiz", "image"]),
+  provider: z
+    .enum(["youtube", "vimeo", "html5", "iframe", "external", "s3", "wasabi", "google_drive", "stream"])
+    .optional(),
   url: z.string().trim().optional(),
   body: z.string().trim().optional(),
+  caption: z.string().trim().optional(),
   durationMinutes: z.coerce.number().min(0).max(600).optional(),
   isFreePreview: z.boolean().optional(),
 });
@@ -269,8 +471,9 @@ export async function addLesson(input: z.infer<typeof lessonSchema>): Promise<St
     videoProvider: isVideo ? (input.provider ?? "youtube") : null,
     videoUrl: isVideo ? (input.url || null) : null,
     audioUrl: input.type === "audio" ? (input.url || null) : null,
-    attachment: input.type === "document" ? (input.url || null) : null,
-    summary: input.type === "text" ? (input.body || null) : (input.body || null),
+    attachment: input.type === "document" || input.type === "image" ? (input.url || null) : null,
+    caption: input.caption || null,
+    summary: input.body || null,
     isFreePreview: input.isFreePreview ?? false,
     durationSeconds: Math.round((input.durationMinutes ?? 0) * 60),
   });
@@ -332,7 +535,13 @@ export async function addQuizQuestion(input: z.infer<typeof questionSchema>): Pr
   const [lesson] = await db
     .select()
     .from(lessons)
-    .where(and(eq(lessons.id, input.lessonId), eq(lessons.type, "quiz")))
+    .where(
+      and(
+        eq(lessons.id, input.lessonId),
+        eq(lessons.courseId, input.courseId),
+        eq(lessons.type, "quiz"),
+      ),
+    )
     .limit(1);
   if (!lesson) return { ok: false, error: "not_found" };
 
@@ -369,6 +578,18 @@ export async function addQuizQuestion(input: z.infer<typeof questionSchema>): Pr
 export async function deleteQuizQuestion(courseId: string, questionId: string): Promise<StudioResult> {
   const guard = await requireInstructor();
   if (!guard.ok) return { ok: false, error: guard.error };
+  if (!(await assertOwnsCourse(guard.userId, courseId, guard.isAdmin)))
+    return { ok: false, error: "forbidden" };
+
+  const [target] = await db
+    .select({ id: questions.id })
+    .from(questions)
+    .innerJoin(quizzes, eq(quizzes.id, questions.quizId))
+    .innerJoin(lessons, eq(lessons.id, quizzes.lessonId))
+    .where(and(eq(questions.id, questionId), eq(lessons.courseId, courseId)))
+    .limit(1);
+  if (!target) return { ok: false, error: "not_found" };
+
   await db.delete(questions).where(eq(questions.id, questionId));
   revalidatePath(`/studio/courses/${courseId}/curriculum`);
   return { ok: true };

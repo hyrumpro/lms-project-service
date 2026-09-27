@@ -12,7 +12,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${BASE}${path}`,
       lastModified: new Date(),
       changeFrequency: "weekly",
-      priority: path === "" ? 1 : 0.7,
+        priority: path === "" ? 1 : 0.7,
+        alternates: {
+          languages: Object.fromEntries(
+            ["en", "es", "ar", "zh", "fr", "ka", "de", "hi", "id", "it", "km", "pt", "ro", "ru", "tr", "ur"].map(
+              (locale) => [locale, `${BASE}${path}`],
+            ),
+          ),
+        },
     }),
   );
 

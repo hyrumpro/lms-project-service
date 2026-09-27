@@ -76,6 +76,7 @@ export const subscribers = pgTable("subscribers", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   email: text("email").notNull().unique(),
+  confirmed: boolean("confirmed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -178,6 +179,16 @@ export const newsletterCampaigns = pgTable("newsletter_campaigns", {
   status: text("status").notNull().default("draft"), // draft | sent
   sentAt: timestamp("sent_at", { withTimezone: true }),
   stats: jsonb("stats").$type<{ sent: number; failed: number }>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const campaignSends = pgTable("campaign_sends", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  campaignId: text("campaign_id")
+    .notNull()
+    .references(() => newsletterCampaigns.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  status: text("status").notNull().default("queued"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

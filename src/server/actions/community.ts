@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -105,4 +105,77 @@ export async function sendMessage(input: z.infer<typeof messageSchema>): Promise
     .where(eq(messageThreads.id, thread.id));
   revalidatePath(`/dashboard/messages/${parsed.data.threadCode}`);
   return { ok: true };
+}
+
+const createThreadSchema = z.object({
+  recipientId: z.string().min(1),
+  message: z.string().trim().min(1).max(4000),
+});
+
+export async function createMessageThread(
+  input: z.infer<typeof createThreadSchema>,
+): Promise<{ ok: true; threadCode: string } | { ok: false; error: string }> {
+  const userId = await requireUserId();
+  if (!userId) return { ok: false, error: "auth_required" };
+  const parsed = createThreadSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (parsed.data.recipientId === userId) {
+    return { ok: false, error: "cannot_message_self" };
+  }
+
+  const [recipient] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.id, parsed.data.recipientId))
+    .limit(1);
+  if (!recipient) return { ok: false, error: "recipient_not_found" };
+
+  const [existingThread] = await db
+    .select()
+    .from(messageThreads)
+    .where(
+      or(
+        and(eq(messageThreads.senderId, userId), eq(messageThreads.receiverId, parsed.data.recipientId)),
+        and(eq(messageThreads.senderId, parsed.data.recipientId), eq(messageThreads.receiverId, userId)),
+      ),
+    )
+    .limit(1);
+
+  let thread = existingThread;
+  if (!thread) {
+    const threadCode = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+    const [newThread] = await db
+      .insert(messageThreads)
+      .values({
+        threadCode,
+        senderId: userId,
+        receiverId: parsed.data.recipientId,
+        lastMessageAt: new Date(),
+      })
+      .returning();
+    thread = newThread;
+  }
+
+  await db.insert(messages).values({
+    threadId: thread.id,
+    senderId: userId,
+    body: parsed.data.message,
+  });
+
+  await db
+    .update(messageThreads)
+    .set({ lastMessageAt: new Date() })
+    .where(eq(messageThreads.id, thread.id));
+
+  await db.insert(notifications).values({
+    userId: parsed.data.recipientId,
+    type: "message",
+    title: "New message received",
+    body: parsed.data.message.slice(0, 100),
+    url: `/dashboard/messages/${thread.threadCode}`,
+  });
+
+  revalidatePath("/dashboard/messages");
+  revalidatePath(`/dashboard/messages/${thread.threadCode}`);
+  return { ok: true, threadCode: thread.threadCode };
 }

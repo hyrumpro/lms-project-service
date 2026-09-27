@@ -13,6 +13,7 @@ const NAV = [
   { href: "/studio/live", labelKey: "live", icon: Radio, index: "05" },
   { href: "/studio/blog", labelKey: "blog", icon: Newspaper, index: "06" },
   { href: "/studio/ai", labelKey: "ai", icon: Sparkles, index: "07" },
+  { href: "/studio/certificates", labelKey: "certificates", icon: Sparkles, index: "08" },
 ] as const;
 
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {

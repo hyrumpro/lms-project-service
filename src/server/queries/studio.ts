@@ -11,6 +11,7 @@ import {
   quizzes,
   reviews,
   sections,
+  user,
 } from "@/db/schema";
 
 /** Studio queries — instructor-owned data with status counts. */
@@ -31,6 +32,20 @@ export async function listStudioCourses(instructorId: string) {
     .leftJoin(categories, eq(categories.id, courses.categoryId))
     .where(eq(courseInstructors.instructorId, instructorId))
     .orderBy(desc(courses.updatedAt));
+}
+
+export async function listCourseInstructors(courseId: string) {
+  return db
+    .select({
+      instructorId: courseInstructors.instructorId,
+      isOwner: courseInstructors.isOwner,
+      name: user.name,
+      email: user.email,
+    })
+    .from(courseInstructors)
+    .innerJoin(user, eq(user.id, courseInstructors.instructorId))
+    .where(eq(courseInstructors.courseId, courseId))
+    .orderBy(desc(courseInstructors.isOwner));
 }
 
 export async function getCourseForEdit(courseId: string, instructorId: string) {

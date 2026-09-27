@@ -20,23 +20,15 @@ export function LessonCompleteButton({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  if (isCompleted) {
-    return (
-      <span className="text-sm font-medium text-teal-700 dark:text-teal-400">
-        <CheckCircle2 className="mr-1 inline size-4" />
-        Completed
-      </span>
-    );
-  }
-
   return (
     <Button
+      variant={isCompleted ? "outline" : "default"}
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
           const result = await markLessonComplete(courseId, lessonId);
           if (result.ok) {
-            toast.success("Lesson complete ✓");
+            toast.success(result.isCompleted ? "Lesson complete ✓" : "Lesson marked incomplete");
             router.refresh();
           } else {
             toast.error("Could not save progress.");
@@ -44,8 +36,12 @@ export function LessonCompleteButton({
         })
       }
     >
-      {pending && <Loader2 className="animate-spin" data-icon="inline-start" />}
-      Mark as complete
+      {pending ? (
+        <Loader2 className="animate-spin" data-icon="inline-start" />
+      ) : isCompleted ? (
+        <CheckCircle2 className="text-teal-600 dark:text-teal-400" data-icon="inline-start" />
+      ) : null}
+      {isCompleted ? "Completed (click to unmark)" : "Mark as complete"}
     </Button>
   );
 }

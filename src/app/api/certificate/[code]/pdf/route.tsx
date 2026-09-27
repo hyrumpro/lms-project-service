@@ -34,6 +34,9 @@ export async function GET(
   }
 
   const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3100";
+  const verifyUrl = `${base}/certificate/${row.code}`;
+  const QRCode = (await import("qrcode")).default;
+  const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 180 });
   const buffer = await renderToBuffer(
     <CertificatePdf
       studentName={row.studentName}
@@ -44,7 +47,8 @@ export async function GET(
         day: "numeric",
         year: "numeric",
       }).format(row.issuedAt)}
-      verifyUrl={`${base}/certificate/${row.code}`}
+      verifyUrl={verifyUrl}
+      qrDataUrl={qrDataUrl}
     />,
   );
 

@@ -201,14 +201,37 @@ export async function createCampaign(input: z.infer<typeof campaignSchema>): Pro
  */
 export async function sendCampaign(campaignId: string): Promise<SimpleResult> {
   if (!(await requireAdmin("newsletters"))) return { ok: false, error: "forbidden" };
-  const recipients = await db.select({ email: subscribers.email }).from(subscribers);
-  console.info(
-    `[newsletter] campaign ${campaignId} → ${recipients.length} recipients:`,
-    recipients.map((r) => r.email),
-  );
+  const [campaign] = await db
+    .select()
+    .from(newsletterCampaigns)
+    .where(eq(newsletterCampaigns.id, campaignId))
+    .limit(1);
+  if (!campaign) return { ok: false, error: "not_found" };
+  const recipients = await db
+    .select({ email: subscribers.email })
+    .from(subscribers)
+    .where(eq(subscribers.confirmed, true));
+  const { sendEmail } = await import("@/server/services/email");
+  const { campaignSends } = await import("@/db/schema");
+  let sent = 0;
+  let failed = 0;
+  for (const recipient of recipients) {
+    const result = await sendEmail({
+      to: recipient.email,
+      subject: campaign.subject,
+      html: campaign.body,
+    });
+    await db.insert(campaignSends).values({
+      campaignId,
+      email: recipient.email,
+      status: result.ok ? "sent" : "failed",
+    });
+    if (result.ok) sent++;
+    else failed++;
+  }
   await db
     .update(newsletterCampaigns)
-    .set({ status: "sent", sentAt: new Date(), stats: { sent: recipients.length, failed: 0 } })
+    .set({ status: "sent", sentAt: new Date(), stats: { sent, failed } })
     .where(eq(newsletterCampaigns.id, campaignId));
   revalidatePath("/admin/newsletters");
   return { ok: true };
@@ -354,17 +377,21 @@ export async function scheduleLiveClass(
     return { ok: false, error: "not_your_course" };
   }
 
-  const joinUrl =
-    parsed.data.joinUrl ||
-    (parsed.data.provider === "jitsi"
-      ? `https://meet.jit.si/academy-${parsed.data.courseId.slice(0, 8)}-${Date.now().toString(36)}`
-      : null);
+  const resolved = await import("@/lib/live-class").then((mod) =>
+    mod.resolveProviderJoinUrl({
+      provider: parsed.data.provider,
+      title: parsed.data.title,
+      courseId: parsed.data.courseId,
+      startsAt: parsed.data.startsAt,
+      joinUrl: parsed.data.joinUrl,
+    }),
+  );
 
   await db.insert(liveClasses).values({
     courseId: parsed.data.courseId,
     title: parsed.data.title,
     provider: parsed.data.provider,
-    joinUrl,
+    joinUrl: resolved.joinUrl,
     startsAt: new Date(parsed.data.startsAt),
   });
   revalidatePath("/studio/live");

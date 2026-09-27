@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth } from "@/lib/auth";
 import { getPostBySlug, getPostComments, getRelatedPosts } from "@/server/queries/blog";
 import { CommentForm } from "@/components/blog/comment-form";
+import { likePostComment } from "@/server/actions/blog";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 type Params = Promise<{ slug: string }>;
 
@@ -66,7 +68,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
 
       <div
         className="text-foreground/90 [&_a]:text-coral [&_a]:underline [&_blockquote]:border-coral [&_blockquote]:border-l-4 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:font-heading [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:font-heading [&_h3]:mt-8 [&_h3]:mb-2 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-4"
-        dangerouslySetInnerHTML={{ __html: post.description }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.description) }}
       />
 
       <section className="mt-14">
@@ -102,6 +104,16 @@ export default async function BlogPostPage({ params }: { params: Params }) {
                   </span>
                 </p>
                 <p className="text-muted-foreground text-sm">{comment.body}</p>
+                <form
+                  action={async () => {
+                    "use server";
+                    await likePostComment(comment.id, post.slug);
+                  }}
+                >
+                  <button className="text-muted-foreground text-xs underline" type="submit">
+                    Like ({comment.likes})
+                  </button>
+                </form>
               </div>
             </li>
           ))}

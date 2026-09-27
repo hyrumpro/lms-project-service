@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { courses, courseInstructors, lessons, sections, user } from "@/db/schema";
+import { handleMobile } from "@/server/api/mobile";
 
 /** GET /api/v1/courses/{id} — course object with curriculum (legacy course_object_by_id_get). */
 export async function GET(
@@ -9,6 +10,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  if (id === "search" || id === "top" || id === "filter") {
+    return handleMobile(_request, ["courses", id]);
+  }
   const [course] = await db.select().from(courses).where(eq(courses.id, id)).limit(1);
   if (!course) {
     return NextResponse.json({ status: false, message: "Not found" }, { status: 404 });

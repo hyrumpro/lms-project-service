@@ -16,12 +16,14 @@ const NAV = [
   { href: "/dashboard/wishlist", labelKey: "wishlist", index: "03" },
   { href: "/dashboard/shopping-cart", labelKey: "cart", index: "04" },
   { href: "/dashboard/purchases", labelKey: "purchases", index: "05" },
-  { href: "/dashboard/subscription", labelKey: "subscription", index: "06" },
-  { href: "/dashboard/notifications", labelKey: "notifications", index: "07" },
-  { href: "/dashboard/messages", labelKey: "messages", index: "08" },
-  { href: "/dashboard/following", labelKey: "following", index: "09" },
-  { href: "/dashboard/badges", labelKey: "badges", index: "10" },
-  { href: "/dashboard/profile", labelKey: "profile", index: "11" },
+  { href: "/dashboard/bookings", labelKey: "bookings", index: "06" },
+  { href: "/dashboard/affiliate", labelKey: "affiliate", index: "07" },
+  { href: "/dashboard/subscription", labelKey: "subscription", index: "08" },
+  { href: "/dashboard/notifications", labelKey: "notifications", index: "09" },
+  { href: "/dashboard/messages", labelKey: "messages", index: "10" },
+  { href: "/dashboard/following", labelKey: "following", index: "11" },
+  { href: "/dashboard/badges", labelKey: "badges", index: "12" },
+  { href: "/dashboard/profile", labelKey: "profile", index: "13" },
 ] as const;
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -37,8 +39,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <aside className="flex flex-col gap-6 lg:sticky lg:top-20 lg:self-start">
         <DropdownMenu>
           <DropdownMenuTrigger
+            nativeButton
             render={
-              <button className="flex items-center gap-3 rounded-lg border bg-card p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+              <button type="button" className="flex items-center gap-3 rounded-lg border bg-card p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                 <Avatar className="size-10">
                   <AvatarImage src={user.image ?? undefined} alt={user.name} />
                   <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>

@@ -8,6 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { EnrollButton } from "@/components/course/enroll-button";
 import { WishlistButton } from "@/components/course/wishlist-button";
 import { PaidCourseActions } from "@/components/course/paid-course-actions";
+import { ReviewForm } from "@/components/course/review-form";
+import { MessageButton } from "@/components/community/message-button";
 import { LiveClassesSection } from "@/components/course/live-classes-section";
 import { VideoLesson } from "@/components/player/video-lesson";
 import {
@@ -103,6 +105,9 @@ export default async function CoursePage({ params }: { params: Params }) {
     getRelatedCourses(course.id, course.categoryId),
   ]);
   const enrollment = session ? await getEnrollmentFor(session.user.id, course.id) : null;
+  const isExpired = Boolean(enrollment?.expiresAt && new Date(enrollment.expiresAt) < new Date());
+  const hasActiveEnrollment = Boolean(enrollment && !isExpired);
+  const userReview = session ? reviews.find((r) => r.userId === session.user.id) : null;
   const isOwner = session ? await isInstructorOfCourse(session.user.id, course.id) : false;
   const wishlisted = session ? await getWishlistItemFor(session.user.id, course.id) : false;
   const price = coursePriceLabel(course, system);
@@ -195,6 +200,20 @@ export default async function CoursePage({ params }: { params: Params }) {
             </section>
           )}
 
+          {data.course.customFieldValues && Object.keys(data.course.customFieldValues).length > 0 && (
+            <section>
+              <h2 className="mb-4 text-xl font-semibold">Details</h2>
+              <dl className="grid gap-2 text-sm">
+                {Object.entries(data.course.customFieldValues).map(([key, value]) => (
+                  <div key={key} className="grid grid-cols-[160px_1fr] gap-2">
+                    <dt className="text-muted-foreground">{key}</dt>
+                    <dd>{String(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
           <section>
             <h2 className="mb-4 text-xl font-semibold">Curriculum</h2>
             {curriculum.length === 0 ? (
@@ -256,25 +275,36 @@ export default async function CoursePage({ params }: { params: Params }) {
             <div className="flex flex-col gap-4">
               {instructors.map((instructor) => (
                 <Card key={instructor.id}>
-                  <CardContent className="flex items-start gap-4">
-                    <Avatar className="size-14">
-                      <AvatarImage src={instructor.image ?? undefined} alt={instructor.name} />
-                      <AvatarFallback>{instructor.name.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col gap-1">
-                      <Link
-                        href={`/instructor/${instructor.id}`}
-                        className="font-semibold hover:underline"
-                      >
-                        {instructor.name}
-                      </Link>
-                      {instructor.title && (
-                        <span className="text-muted-foreground text-sm">{instructor.title}</span>
-                      )}
-                      {instructor.biography && (
-                        <p className="text-muted-foreground text-sm">{instructor.biography}</p>
-                      )}
+                  <CardContent className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="size-14">
+                        <AvatarImage src={instructor.image ?? undefined} alt={instructor.name} />
+                        <AvatarFallback>{instructor.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col gap-1">
+                        <Link
+                          href={`/instructor/${instructor.id}`}
+                          className="font-semibold hover:underline"
+                        >
+                          {instructor.name}
+                        </Link>
+                        {instructor.title && (
+                          <span className="text-muted-foreground text-sm">{instructor.title}</span>
+                        )}
+                        {instructor.biography && (
+                          <p className="text-muted-foreground text-sm">{instructor.biography}</p>
+                        )}
+                      </div>
                     </div>
+                    {(!session || session.user.id !== instructor.id) && (
+                      <MessageButton
+                        recipientId={instructor.id}
+                        recipientName={instructor.name}
+                        currentUserId={session?.user.id}
+                        size="sm"
+                        buttonText="Message"
+                      />
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -285,6 +315,18 @@ export default async function CoursePage({ params }: { params: Params }) {
             <h2 className="mb-4 text-xl font-semibold">
               Reviews {stats.ratingCount > 0 && `(${stats.ratingCount})`}
             </h2>
+            {session && hasActiveEnrollment && (
+              <div className="mb-6">
+                <ReviewForm
+                  courseId={course.id}
+                  existingReview={
+                    userReview
+                      ? { rating: userReview.rating, review: userReview.review }
+                      : null
+                  }
+                />
+              </div>
+            )}
             {reviews.length === 0 ? (
               <p className="text-muted-foreground text-sm">No reviews yet.</p>
             ) : (
@@ -325,23 +367,30 @@ export default async function CoursePage({ params }: { params: Params }) {
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {!isOwner && (
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    {course.isFree || (course.discountEnabled && course.discountedPrice === 0) ? (
-                      <EnrollButton
-                        courseId={course.id}
-                        slug={course.slug}
-                        enrolled={Boolean(enrollment)}
-                      />
-                    ) : enrollment ? (
-                      <Button className="w-full" render={<a href={`/learn/${course.id}`} />}>
-                        Continue learning →
-                      </Button>
-                    ) : (
-                      <PaidCourseActions courseId={course.id} />
-                    )}
+                <div className="flex flex-col gap-2">
+                  {isExpired && (
+                    <Badge variant="destructive" className="justify-center py-1 text-xs">
+                      Access expired on {new Date(enrollment!.expiresAt!).toLocaleDateString()}
+                    </Badge>
+                  )}
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      {course.isFree || (course.discountEnabled && course.discountedPrice === 0) ? (
+                        <EnrollButton
+                          courseId={course.id}
+                          slug={course.slug}
+                          enrolled={hasActiveEnrollment}
+                        />
+                      ) : hasActiveEnrollment ? (
+                        <Button className="w-full" render={<a href={`/learn/${course.id}`} />}>
+                          Continue learning →
+                        </Button>
+                      ) : (
+                        <PaidCourseActions courseId={course.id} />
+                      )}
+                    </div>
+                    <WishlistButton courseId={course.id} wishlisted={wishlisted} />
                   </div>
-                  <WishlistButton courseId={course.id} wishlisted={wishlisted} />
                 </div>
               )}
               {isOwner && (

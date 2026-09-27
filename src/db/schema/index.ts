@@ -7,3 +7,4 @@ export * from "./community";
 export * from "./commerce";
 export * from "./application";
 export * from "./subscriptions";
+export * from "./addons";

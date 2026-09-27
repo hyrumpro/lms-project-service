@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -39,7 +39,32 @@ export async function subscribeToNewsletter(email: string): Promise<CommentResul
   if (!parsed.success) return { ok: false, error: "invalid_email" };
   await db
     .insert(subscribers)
-    .values({ email: parsed.data.email })
+    .values({ email: parsed.data.email, confirmed: false })
     .onConflictDoNothing();
+  const { sendEmail } = await import("@/server/services/email");
+  const origin = process.env.BETTER_AUTH_URL ?? "http://localhost:3100";
+  await sendEmail({
+    to: parsed.data.email,
+    subject: "Confirm your Academy newsletter subscription",
+    html: `<p>Confirm your subscription: <a href="${origin}/newsletter/confirm?email=${encodeURIComponent(parsed.data.email)}">confirm</a></p>`,
+  });
+  return { ok: true };
+}
+
+export async function confirmNewsletter(email: string): Promise<CommentResult> {
+  const parsed = subscriberSchema.safeParse({ email });
+  if (!parsed.success) return { ok: false, error: "invalid_email" };
+  await db.update(subscribers).set({ confirmed: true }).where(eq(subscribers.email, parsed.data.email));
+  return { ok: true };
+}
+
+export async function likePostComment(commentId: string, slug: string): Promise<CommentResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return { ok: false, error: "auth_required" };
+  await db
+    .update(postComments)
+    .set({ likes: sql`${postComments.likes} + 1` })
+    .where(eq(postComments.id, commentId));
+  revalidatePath(`/blog/${slug}`);
   return { ok: true };
 }

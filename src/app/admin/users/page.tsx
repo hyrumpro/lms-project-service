@@ -57,7 +57,21 @@ export default async function AdminUsersPage() {
               </div>
               <p className="text-muted-foreground text-sm">{u.email}</p>
             </div>
-            {u.role !== "admin" && (
+            {u.role === "admin" ? (
+              <div className="w-full pt-2 sm:w-auto sm:pt-0">
+                <AdminFlagsEditor
+                  userId={u.id}
+                  flags={(adminFlags[u.id] as Record<string, boolean>) ?? {
+                    categories: true,
+                    courses: true,
+                    users: true,
+                    commerce: true,
+                    content: true,
+                    newsletters: true,
+                  }}
+                />
+              </div>
+            ) : (
               <UserToggles
                 userId={u.id}
                 isInstructor={Boolean(u.isInstructor)}

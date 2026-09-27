@@ -73,6 +73,7 @@ export const courseProgress = pgTable(
     quizSummary: jsonb("quiz_summary").$type<
       { lessonId: string; obtainedMarks: number; totalMarks: number }[]
     >(),
+    dripUnlockedOrder: integer("drip_unlocked_order").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

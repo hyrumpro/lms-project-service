@@ -190,19 +190,21 @@ export async function listEnrollmentsForAdmin() {
     .limit(50);
 }
 
-/** Admin section permission check (missing flag = allowed, default-open). */
-export async function getAdminFlags(userId: string): Promise<Record<string, boolean>> {
+/** Admin section permission check (fail-closed for restricted admins, legacy root-admin parity). */
+export async function getAdminFlags(userId: string): Promise<Record<string, boolean> | null> {
   const [row] = await db
     .select({ flags: adminPermissions.flags })
     .from(adminPermissions)
     .where(eq(adminPermissions.userId, userId))
     .limit(1);
-  return row?.flags ?? {};
+  return row ? (row.flags as Record<string, boolean>) : null;
 }
 
 export async function canAccessAdminSection(userId: string, section: string): Promise<boolean> {
   const flags = await getAdminFlags(userId);
-  return flags[section] !== false;
+  // Root admin has no restrictive record in admin_permissions (legacy is_root_admin parity)
+  if (flags === null) return true;
+  return flags[section] === true;
 }
 
 export async function listAdminFlags() {

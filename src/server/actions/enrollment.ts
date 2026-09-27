@@ -28,9 +28,14 @@ export async function enrollInFreeCourse(courseId: string, slug: string): Promis
   const isFree = course.isFree || (course.discountEnabled && course.discountedPrice === 0);
   if (!isFree) return { ok: false, error: "not_free" };
 
+  const expiresAt =
+    course.expiryPeriod && course.expiryPeriod > 0
+      ? new Date(Date.now() + course.expiryPeriod * 86_400_000)
+      : null;
+
   await db
     .insert(enrollments)
-    .values({ userId: session.user.id, courseId, source: "free" })
+    .values({ userId: session.user.id, courseId, source: "free", expiresAt })
     .onConflictDoNothing();
 
   await db

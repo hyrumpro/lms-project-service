@@ -1,10 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Languages, Moon, Sun, MoonStar } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,57 +15,55 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { setLocale } from "@/server/actions/i18n";
+import { LOCALE_LABEL, locales } from "@/i18n/locales";
 
 /** Language (EN/ES) + dark-mode controls in one settings dropdown. */
 export function PreferencesMenu() {
   const t = useTranslations("common");
   const locale = useLocale();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [pending, startTransition] = useTransition();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon" aria-label={t("language")}>
-            <Languages className="size-4" />
-          </Button>
-        }
-      />
+        className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+        aria-label={t("language")}
+      >
+        <Languages className="size-4" aria-hidden="true" />
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
         <DropdownMenuGroup>
         <DropdownMenuLabel>{t("language")}</DropdownMenuLabel>
-        <DropdownMenuItem
-          disabled={pending || locale === "en"}
-          onSelect={(e) => {
-            e.preventDefault();
-            startTransition(async () => setLocale("en"));
-          }}
-        >
-          🇬🇧 English {locale === "en" && "· ✓"}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={pending || locale === "es"}
-          onSelect={(e) => {
-            e.preventDefault();
-            startTransition(async () => setLocale("es"));
-          }}
-        >
-          🇪🇸 Español {locale === "es" && "· ✓"}
-        </DropdownMenuItem>
+        {locales.map((code) => (
+          <DropdownMenuItem
+            key={code}
+            disabled={pending || locale === code}
+            onClick={() => {
+              startTransition(async () => {
+                await setLocale(code);
+                router.refresh();
+              });
+            }}
+          >
+            {LOCALE_LABEL[code]} {locale === code && "· ✓"}
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
         </DropdownMenuGroup>
         <DropdownMenuGroup>
         <DropdownMenuLabel>Theme</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={() => setTheme("light")}>
-          <Sun className="size-3.5" /> Light {theme === "light" && "· ✓"}
+        <DropdownMenuItem onClick={() => setTheme("light")}>
+          <Sun className="size-3.5" aria-hidden="true" /> Light {theme === "light" && "· ✓"}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setTheme("dark")}>
-          <Moon className="size-3.5" /> Dark {theme === "dark" && "· ✓"}
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
+          <Moon className="size-3.5" aria-hidden="true" /> Dark {theme === "dark" && "· ✓"}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setTheme("system")}>
-          <MoonStar className="size-3.5" /> System {theme === "system" && "· ✓"}
+        <DropdownMenuItem onClick={() => setTheme("system")}>
+          <MoonStar className="size-3.5" aria-hidden="true" /> System {theme === "system" && "· ✓"}
         </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

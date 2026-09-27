@@ -9,20 +9,35 @@ import {
   Headphones,
   HelpCircle,
   Lock,
+  Megaphone,
   Paperclip,
   Play,
+  Radio,
   StickyNote,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { getLearnData, getLearnAccess, getLatestQuizResult, getLessonBundle } from "@/server/queries/learn";
+import {
+  getLearnData,
+  getLearnAccess,
+  getLatestQuizResult,
+  getLessonBundle,
+  countQuizAttempts,
+} from "@/server/queries/learn";
 import { VideoLesson } from "@/components/player/video-lesson";
 import { QuizRunner } from "@/components/player/quiz-runner";
 import { LessonCompleteButton } from "@/components/player/lesson-complete-button";
 import { CertificateCta } from "@/components/player/certificate-cta";
 import { CourseForum } from "@/components/player/course-forum";
 import { getCourseForum } from "@/server/queries/forum";
+import { sanitizeHtml } from "@/lib/sanitize";
+import { getSystemSettings } from "@/lib/settings";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { liveClasses } from "@/db/schema";
 
 type Params = Promise<{ courseId: string; lessonId: string }>;
 
@@ -32,6 +47,7 @@ const TYPE_ICON = {
   text: StickyNote,
   document: FileText,
   audio: Headphones,
+  image: FileText,
 } as const;
 
 function formatDuration(seconds: number): string {
@@ -67,6 +83,12 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
   const bundle = await getLessonBundle(courseId, lessonId);
   if (!bundle) notFound();
   const forumQuestions = await getCourseForum(courseId);
+  const system = await getSystemSettings();
+  const systemWatermark = system.watermarkText;
+  const classRows = await db
+    .select({ id: liveClasses.id, title: liveClasses.title, joinUrl: liveClasses.joinUrl, startsAt: liveClasses.startsAt })
+    .from(liveClasses)
+    .where(eq(liveClasses.courseId, courseId));
   const { lesson } = bundle;
 
   const flatLessons = data.sections.flatMap((s) =>
@@ -83,9 +105,9 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
     bundle.quiz && !access.isOwner
       ? await getLatestQuizResult(bundle.quiz.id, session.user.id)
       : null;
-  const attemptsLeft = bundle.quiz
-    ? Math.max(0, lesson.quizMaxAttempts - (quizResult ? 1 : 0))
-    : 0;
+  const attemptCount =
+    bundle.quiz && !access.isOwner ? await countQuizAttempts(bundle.quiz.id, session.user.id) : 0;
+  const attemptsLeft = bundle.quiz ? Math.max(0, lesson.quizMaxAttempts - attemptCount) : 0;
 
   const isVideoTracked = lesson.type === "video";
 
@@ -199,14 +221,31 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
               videoUrl={lesson.videoUrl}
               resumeSeconds={current.lastPositionSeconds}
               isCompleted={current.isCompleted}
+              captionUrl={lesson.caption}
+              nextHref={next && !next.locked ? `/learn/${courseId}/${next.id}` : null}
+              watermark={systemWatermark}
             />
+          )}
+
+          {lesson.type === "image" && lesson.attachment && (
+            <div className="flex flex-col gap-4 rounded-xl border bg-card p-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={lesson.attachment} alt={lesson.title} className="max-h-[70vh] w-full object-contain" />
+              {!access.isOwner && (
+                <LessonCompleteButton
+                  courseId={courseId}
+                  lessonId={lesson.id}
+                  isCompleted={current.isCompleted}
+                />
+              )}
+            </div>
           )}
 
           {lesson.type === "text" && (
             <div className="flex flex-col gap-4 rounded-xl border bg-card p-6">
               <div
                 className="text-foreground/90 [&_a]:text-coral [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-3"
-                dangerouslySetInnerHTML={{ __html: lesson.summary ?? "<p>No content yet.</p>" }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) || "<p>No content yet.</p>" }}
               />
               {!access.isOwner && (
                 <LessonCompleteButton
@@ -322,15 +361,16 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
           </nav>
 
           {/* bottom tabs: summary / attachments / certificate */}
-          <section className="rounded-xl border bg-card">
-            <div className="border-b px-5 py-3">
-              <h2 className="font-heading text-sm font-semibold">About this lesson</h2>
-            </div>
-            <div className="flex flex-col gap-4 p-5 text-sm">
+          <section>
+            <Card>
+            <CardHeader className="border-b">
+              <CardTitle>About this lesson</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 text-sm">
               {lesson.summary && lesson.type !== "text" && (
                 <div
                   className="text-muted-foreground [&_p]:my-1"
-                  dangerouslySetInnerHTML={{ __html: lesson.summary }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }}
                 />
               )}
               {bundle.attachments.length > 0 && (
@@ -341,7 +381,7 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
                         href={a.file}
                         className="text-coral inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs hover:bg-secondary"
                       >
-                        <Paperclip className="size-3" />
+                        <Paperclip className="size-3" aria-hidden="true" />
                         {a.title}
                       </a>
                     </li>
@@ -350,7 +390,7 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
               )}
               {data.percent >= 100 && (
                 <div className="flex items-center gap-3 rounded-lg border-2 border-dashed border-sun bg-sun/10 p-4">
-                  <Award className="text-sun-foreground size-8" />
+                  <Award className="text-sun-foreground size-8" aria-hidden="true" />
                   <div className="flex-1">
                     <p className="font-heading font-semibold">Course complete!</p>
                     <p className="text-muted-foreground text-xs">
@@ -360,15 +400,86 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
                   <CertificateCta courseId={courseId} code={data.certificateCode} />
                 </div>
               )}
-            </div>
+            </CardContent>
+            </Card>
           </section>
 
-          {/* course Q&A forum (legacy addon, spec §7.20) */}
-          <section className="rounded-xl border bg-card">
-            <div className="border-b px-5 py-3">
-              <h2 className="font-heading text-sm font-semibold">Q&amp;A</h2>
-            </div>
-            <div className="p-5">
+          <section>
+            <Card>
+            <CardHeader className="border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Radio className="size-4" aria-hidden="true" />
+                Live class
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 text-sm">
+              {Boolean(access.enrollment) || access.isOwner ? (
+                classRows.length === 0 ? (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <Radio aria-hidden="true" />
+                      </EmptyMedia>
+                      <EmptyTitle>No live classes scheduled</EmptyTitle>
+                      <EmptyDescription>Join links appear here when the instructor schedules a class.</EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                ) : (
+                  classRows.map((item) => (
+                    <p key={item.id}>
+                      {item.title} · <span className="tabular-nums">{item.startsAt.toLocaleString()}</span>
+                      {item.joinUrl ? (
+                        <>
+                          {" "}
+                          · <a className="text-coral font-medium underline" href={item.joinUrl}>Join</a>
+                        </>
+                      ) : null}
+                    </p>
+                  ))
+                )
+              ) : (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Lock aria-hidden="true" />
+                    </EmptyMedia>
+                    <EmptyTitle>Enroll to see live classes</EmptyTitle>
+                    <EmptyDescription>Join links stay hidden until you are enrolled in this course.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              )}
+            </CardContent>
+            </Card>
+          </section>
+
+          <section>
+            <Card>
+            <CardHeader className="border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Megaphone className="size-4" aria-hidden="true" />
+                Noticeboard
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Megaphone aria-hidden="true" />
+                  </EmptyMedia>
+                  <EmptyTitle>No notices for this lesson</EmptyTitle>
+                  <EmptyDescription>Instructor notes for this lesson will show up here.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            </CardContent>
+            </Card>
+          </section>
+
+          <section>
+            <Card>
+            <CardHeader className="border-b">
+              <CardTitle>Q&amp;A</CardTitle>
+            </CardHeader>
+            <CardContent>
               <CourseForum
                 courseId={courseId}
                 questions={forumQuestions.map((q) => ({
@@ -398,7 +509,8 @@ export default async function LearnLessonPage({ params }: { params: Params }) {
                   error: "Something went wrong.",
                 }}
               />
-            </div>
+            </CardContent>
+            </Card>
           </section>
         </main>
       </div>

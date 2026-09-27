@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CourseCard } from "@/components/course/course-card";
 import { FollowButton } from "@/components/shared/follow-button";
+import { MessageButton } from "@/components/community/message-button";
 import { auth } from "@/lib/auth";
 import { getSystemSettings } from "@/lib/settings";
 import { getInstructorProfile } from "@/server/queries/catalog";
@@ -50,16 +51,24 @@ export default async function InstructorPage({ params }: { params: Params }) {
             <p className="text-muted-foreground mt-2 max-w-2xl text-sm">{instructor.biography}</p>
           )}
         </div>
-        {session && session.user.id !== instructor.id && (
-          <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {session && session.user.id !== instructor.id && (
             <FollowButton
               instructorId={instructor.id}
               following={following}
               label="Follow"
               followingLabel="Following"
             />
-          </div>
-        )}
+          )}
+          {(!session || session.user.id !== instructor.id) && (
+            <MessageButton
+              recipientId={instructor.id}
+              recipientName={instructor.name}
+              currentUserId={session?.user.id}
+              buttonText="Message"
+            />
+          )}
+        </div>
       </header>
 
       <h2 className="mb-6 text-2xl font-bold tracking-tight">Courses</h2>

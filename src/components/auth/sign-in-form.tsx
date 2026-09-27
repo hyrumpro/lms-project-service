@@ -9,9 +9,11 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/auth/password-input";
 import { Spinner } from "@/components/ui/spinner";
+import { RecaptchaField, readRecaptchaToken } from "@/components/auth/recaptcha-field";
 import { authClient } from "@/lib/auth-client";
+import { assertRecaptcha } from "@/server/actions/auth-extra";
 
-export function SignInForm() {
+export function SignInForm({ recaptchaSiteKey }: { recaptchaSiteKey?: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const t = useTranslations("auth");
@@ -20,13 +22,26 @@ export function SignInForm() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setPending(true);
+    if (recaptchaSiteKey) {
+      const captcha = await assertRecaptcha(readRecaptchaToken());
+      if (!captcha.ok) {
+        setPending(false);
+        toast.error("Complete the captcha first.");
+        return;
+      }
+    }
     const { error } = await authClient.signIn.email({
       email: String(formData.get("email")),
       password: String(formData.get("password")),
     });
     setPending(false);
     if (error) {
-      toast.error(error.message ?? "Could not sign in");
+      const message = error.message ?? "Could not sign in";
+      if (/disabled/i.test(message)) {
+        router.push("/account-disabled");
+        return;
+      }
+      toast.error(message);
       return;
     }
     toast.success("Welcome back!");
@@ -48,6 +63,7 @@ export function SignInForm() {
         <FieldDescription>
           Demo accounts live in the README — e.g. student@academy-next.test / SuperSecret123!
         </FieldDescription>
+        <RecaptchaField siteKey={recaptchaSiteKey ?? ""} />
         <Button type="submit" disabled={pending}>
           {pending && <Spinner data-icon="inline-start" />}
           Sign in

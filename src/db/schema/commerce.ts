@@ -58,6 +58,7 @@ export const orders = pgTable("orders", {
   couponId: text("coupon_id").references(() => coupons.id, { onDelete: "set null" }),
   /** gift checkout: enrollments go to this email (legacy gifting) */
   giftToEmail: text("gift_to_email"),
+  affiliateCode: text("affiliate_code"),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

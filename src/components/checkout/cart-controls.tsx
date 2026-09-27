@@ -20,11 +20,13 @@ export function CheckoutPanel({
   subtotal,
   tax,
   buyNowCourseId,
+  gateways,
 }: {
   lines: Line[];
   subtotal: number;
   tax: number;
   buyNowCourseId: string | null;
+  gateways: { identifier: string; title: string }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -47,7 +49,7 @@ export function CheckoutPanel({
     }
   }
 
-  function checkout(gateway: "mock" | "offline") {
+  function checkout(gateway: string) {
     startTransition(async () => {
       const result = await startCheckout({
         gateway,
@@ -61,11 +63,16 @@ export function CheckoutPanel({
           invalid_coupon: "That coupon didn't make it.",
           use_free_enrollment: "These courses are free — enroll directly from the course page.",
           empty_cart: "Your cart is empty.",
+          gateway_unconfigured: "That gateway has no keys configured.",
         };
         toast.error(messages[result.error ?? ""] ?? "Checkout failed.");
         return;
       }
-      router.push(`/checkout/pay/${result.orderId}`);
+      if (result.redirectUrl?.startsWith("http")) {
+        window.location.href = result.redirectUrl;
+        return;
+      }
+      router.push(result.redirectUrl ?? `/checkout/pay/${result.orderId}`);
     });
   }
 
@@ -137,27 +144,21 @@ export function CheckoutPanel({
         </div>
       </div>
 
-      <Button
-        className="w-full"
-        size="lg"
-        disabled={pending}
-        onClick={() => checkout("mock")}
-      >
-        {pending && <Spinner data-icon="inline-start" />}
-        {total === 0 ? "Complete free order" : "Pay with Sandbox Bank"}
-      </Button>
-      <Button
-        className="w-full"
-        size="lg"
-        variant="outline"
-        disabled={pending}
-        onClick={() => checkout("offline")}
-      >
-        Reserve with bank transfer
-      </Button>
-      <p className="text-muted-foreground text-center text-xs">
-        Stripe / PayPal / Razorpay adapters activate when API keys are configured (spec §7.5).
-      </p>
+      <div className="flex flex-col gap-2">
+        {gateways.map((gateway) => (
+          <Button
+            key={gateway.identifier}
+            className="w-full"
+            size="lg"
+            variant={gateway.identifier === "offline" ? "outline" : "default"}
+            disabled={pending}
+            onClick={() => checkout(gateway.identifier)}
+          >
+            {pending && <Spinner data-icon="inline-start" />}
+            {total === 0 ? "Complete free order" : `Pay with ${gateway.title}`}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -49,6 +49,7 @@ export const postComments = pgTable("post_comments", {
     .references(() => user.id, { onDelete: "cascade" }),
   parentId: text("parent_id"),
   body: text("body").notNull(),
+  likes: integer("likes").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

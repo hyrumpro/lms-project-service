@@ -4,7 +4,7 @@ import { Bell, GraduationCap, Menu, ShoppingCart } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,16 +55,15 @@ export async function Header() {
         {/* mobile nav */}
         <Sheet>
           <SheetTrigger
-            render={
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("openMenu")}>
-                <Menu className="size-4" />
-              </Button>
-            }
-          />
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "md:hidden")}
+            aria-label={t("openMenu")}
+          >
+            <Menu className="size-4" aria-hidden="true" />
+          </SheetTrigger>
           <SheetContent side="left" className="w-72">
             <SheetHeader>
               <SheetTitle className="font-heading flex items-center gap-2">
-                <GraduationCap className="size-4" />
+                <GraduationCap className="size-4" aria-hidden="true" />
                 {system.name}
               </SheetTitle>
             </SheetHeader>
@@ -94,7 +93,7 @@ export async function Header() {
         </Sheet>
 
         <Link href="/" className="flex items-center gap-2" aria-label={`${system.name} home`}>
-          <GraduationCap className="size-6" />
+          <GraduationCap className="size-6" aria-hidden="true" />
           <span className="font-heading text-lg font-semibold tracking-tight">
             {system.name}
             <span className="text-coral">.</span>
@@ -102,9 +101,11 @@ export async function Header() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          <Button variant="ghost" render={<Link href="/" />}>{t("home")}</Button>
+          <Button variant="ghost" nativeButton={false} render={<Link href="/" />}>{t("home")}</Button>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost">{t("courses")}</Button>} />
+            <DropdownMenuTrigger className={buttonVariants({ variant: "ghost" })}>
+              {t("courses")}
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="max-h-96 overflow-auto">
               <DropdownMenuGroup>
               <DropdownMenuLabel>{t("courses")}</DropdownMenuLabel>
@@ -121,8 +122,8 @@ export async function Header() {
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="ghost" render={<Link href="/pricing" />}>{t("pricing")}</Button>
-          <Button variant="ghost" render={<Link href="/blog" />}>{t("blog")}</Button>
+          <Button variant="ghost" nativeButton={false} render={<Link href="/pricing" />}>{t("pricing")}</Button>
+          <Button variant="ghost" nativeButton={false} render={<Link href="/blog" />}>{t("blog")}</Button>
         </nav>
 
         <form action="/courses" className="ml-auto hidden w-64 sm:block">
@@ -135,10 +136,11 @@ export async function Header() {
             variant="ghost"
             size="icon"
             className="relative"
+            nativeButton={false}
             aria-label={cartCount > 0 ? `${t("cart")}: ${cartCount}` : t("cart")}
             render={<Link href="/dashboard/shopping-cart" />}
           >
-            <ShoppingCart className="size-4" />
+            <ShoppingCart className="size-4" aria-hidden="true" />
             {cartCount > 0 && (
               <span className="bg-coral text-coral-foreground absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full text-[9px] font-bold">
                 {cartCount}
@@ -152,10 +154,11 @@ export async function Header() {
                 variant="ghost"
                 size="icon"
                 className="relative"
+                nativeButton={false}
                 aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
                 render={<Link href="/dashboard/notifications" />}
               >
-                <Bell className={cn("size-4", unread > 0 && "text-coral")} />
+                <Bell className={cn("size-4", unread > 0 && "text-coral")} aria-hidden="true" />
                 {unread > 0 && (
                   <span className="bg-coral text-coral-foreground absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full text-[9px] font-bold">
                     {unread > 9 ? "9+" : unread}
@@ -164,8 +167,9 @@ export async function Header() {
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger
+                  nativeButton
                   render={
-                    <button className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                    <button type="button" className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                       <Avatar className="size-8">
                         <AvatarImage src={user.image ?? undefined} alt={user.name} />
                         <AvatarFallback>
@@ -197,8 +201,8 @@ export async function Header() {
             </>
           ) : (
             <>
-              <Button variant="ghost" render={<Link href="/sign-in" />}>{t("signIn")}              </Button>
-              <Button render={<Link href="/sign-up" />}>{t("signUp")}</Button>
+              <Button variant="ghost" nativeButton={false} render={<Link href="/sign-in" />}>{t("signIn")}</Button>
+              <Button nativeButton={false} render={<Link href="/sign-up" />}>{t("signUp")}</Button>
             </>
           )}
         </div>

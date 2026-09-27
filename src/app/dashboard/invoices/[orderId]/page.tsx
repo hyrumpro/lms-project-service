@@ -39,6 +39,9 @@ export default async function InvoicePage({ params }: { params: Params }) {
         </div>
         <div className="flex gap-2">
           <PrintButton />
+          <Button variant="outline" render={<Link href={`/api/invoices/${order.id}/pdf`} />}>
+            PDF
+          </Button>
           <Button variant="outline" render={<Link href="/dashboard/purchases" />}>
             Back
           </Button>

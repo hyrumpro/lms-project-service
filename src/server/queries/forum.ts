@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import { forumQuestions, forumReplies, user } from "@/db/schema";
 
@@ -38,4 +38,24 @@ export async function getCourseForum(courseId: string) {
     ...question,
     replies: replies.filter((r) => r.questionId === question.id),
   }));
+}
+
+export async function searchCourseForum(courseId: string, query: string) {
+  const term = `%${query.trim()}%`;
+  return db
+    .select({
+      id: forumQuestions.id,
+      title: forumQuestions.title,
+      body: forumQuestions.body,
+      votes: forumQuestions.votes,
+    })
+    .from(forumQuestions)
+    .where(
+      and(
+        eq(forumQuestions.courseId, courseId),
+        or(ilike(forumQuestions.title, term), ilike(forumQuestions.body, term)),
+      ),
+    )
+    .orderBy(desc(forumQuestions.createdAt))
+    .limit(20);
 }

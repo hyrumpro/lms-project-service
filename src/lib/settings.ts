@@ -21,6 +21,27 @@ export const systemSettingsSchema = z.object({
   currencyPosition: z.enum(["left", "right"]).default("left"),
   instructorRevenuePercent: z.number().min(0).max(100).default(70),
   courseSellingTax: z.number().min(0).default(0),
+  allowInstructor: z.boolean().default(true),
+  studentEmailVerification: z.boolean().default(false),
+  allowedDeviceLogins: z.number().int().min(0).default(0),
+  recaptchaSiteKey: z.string().default(""),
+  recaptchaSecretKey: z.string().default(""),
+  accountDisableMessage: z
+    .string()
+    .default("Your account has been disabled. Please contact the administrator."),
+  googleLogin: z.boolean().default(true),
+  facebookLogin: z.boolean().default(true),
+  linkedinLogin: z.boolean().default(false),
+  certificateQuizThreshold: z.number().min(0).max(100).default(0),
+  smtpHost: z.string().default(""),
+  smtpPort: z.number().int().default(587),
+  smtpUser: z.string().default(""),
+  smtpFrom: z.string().default(""),
+  openaiEnabled: z.boolean().default(false),
+  watermarkText: z.string().default(""),
+  cookieConsent: z.boolean().default(true),
+  dripEnabled: z.boolean().default(false),
+  affiliateCommissionPercent: z.number().min(0).max(100).default(10),
 });
 export type SystemSettings = z.infer<typeof systemSettingsSchema>;
 

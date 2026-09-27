@@ -949,6 +949,43 @@ async function migratePlatform() {
   };
 }
 
+async function migratePermissions() {
+  try {
+    const rows = await legacy<{ id: number; name: string }>("SELECT id, name FROM permissions LIMIT 500");
+    warn(`permissions: ${rows.length} legacy rows noted; admin flags stay in admin_permissions`);
+    return rows.length;
+  } catch (error) {
+    warn(`permissions skipped: ${error instanceof Error ? error.message : "missing table"}`);
+    return 0;
+  }
+}
+
+async function migrateLanguagePhrases() {
+  try {
+    const rows = await legacy<{ phrase: string }>("SELECT phrase FROM language LIMIT 20");
+    warn(`language: ${rows.length} phrase rows left in Academy-LMS/languages JSON (phrase manager edits those files)`);
+    return rows.length;
+  } catch (error) {
+    warn(`language phrases skipped: ${error instanceof Error ? error.message : "missing table"}`);
+    return 0;
+  }
+}
+
+async function migrateAddonTables() {
+  const tables = ["course_bundle", "ebook", "tutor_booking", "affiliator"];
+  let found = 0;
+  for (const table of tables) {
+    try {
+      const rows = await legacy(`SELECT * FROM ${table} LIMIT 1`);
+      found += rows.length;
+      warn(`${table}: present in legacy dump; addon rows land in bundles/ebooks/tutors/affiliates`);
+    } catch {
+      warn(`${table}: not in this dump`);
+    }
+  }
+  return found;
+}
+
 // ── main ──────────────────────────────────────────────────────────────────
 async function main() {
   const target = process.env.DATABASE_URL?.split("@")[1] ?? "?";
@@ -988,6 +1025,9 @@ async function main() {
   report.social = await migrateSocial();
   report.content = await migrateContent();
   report.platform = await migratePlatform();
+  report.permissions = await migratePermissions();
+  report.phrases = await migrateLanguagePhrases();
+  report.addons = await migrateAddonTables();
 
   const orphanEnrollments = await db
     .select({ n: sql<number>`count(*)::int` })

@@ -195,6 +195,8 @@
     "wishlist": "Favoritos",
     "cart": "Carrito",
     "purchases": "Compras",
+    "bookings": "Reservas",
+    "affiliate": "Afiliados",
     "subscription": "Suscripción",
     "notifications": "Notificaciones",
     "messages": "Mensajes",
@@ -210,6 +212,7 @@
     "live": "Clases en vivo",
     "blog": "Blog",
     "ai": "Asistente IA",
+    "certificates": "Certificados",
     "newCourse": "Nuevo curso"
   },
   "adminNav": {
@@ -220,7 +223,15 @@
     "commerce": "Comercio",
     "content": "Contenido",
     "newsletters": "Boletines",
-    "plans": "Planes"
+    "plans": "Planes",
+    "seo": "SEO",
+    "media": "Medios",
+    "languages": "Idiomas",
+    "certificates": "Certificados",
+    "settings": "Ajustes",
+    "emails": "Correos",
+    "customFields": "Campos",
+    "dataCenter": "Datos"
   },
   "pricing": {
     "kicker": "Precios · Membresía",

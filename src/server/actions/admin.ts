@@ -23,6 +23,11 @@ import { canAccessAdminSection } from "@/server/queries/admin";
 import { slugify } from "@/lib/slug";
 import { fulfillOrder } from "@/server/services/checkout";
 import { getSettings, systemSettingsSchema, frontendSettingsSchema } from "@/lib/settings";
+import {
+  addCourseInstructor,
+  removeCourseInstructor,
+  changeCourseAuthor,
+} from "@/server/actions/studio";
 
 export type AdminResult = { ok: true } | { ok: false; error: string };
 
@@ -47,6 +52,30 @@ export async function moderateCourse(courseId: string, status: "active" | "pendi
   }
   revalidatePath("/admin/courses");
   return { ok: true };
+}
+
+export async function adminAddCourseInstructor(
+  courseId: string,
+  instructorId: string,
+): Promise<AdminResult> {
+  if (!(await requireAdmin("courses"))) return { ok: false, error: "forbidden" };
+  return addCourseInstructor(courseId, instructorId);
+}
+
+export async function adminRemoveCourseInstructor(
+  courseId: string,
+  instructorId: string,
+): Promise<AdminResult> {
+  if (!(await requireAdmin("courses"))) return { ok: false, error: "forbidden" };
+  return removeCourseInstructor(courseId, instructorId);
+}
+
+export async function adminChangeCourseAuthor(
+  courseId: string,
+  newAuthorId: string,
+): Promise<AdminResult> {
+  if (!(await requireAdmin("courses"))) return { ok: false, error: "forbidden" };
+  return changeCourseAuthor(courseId, newAuthorId);
 }
 
 async function notifyCourseOwners(
@@ -123,10 +152,25 @@ export async function enrollStudentManually(input: z.infer<typeof enrollSchema>)
     .from(user)
     .where(eq(user.email, parsed.data.userEmail.toLowerCase()))
     .limit(1);
-  if (!student) return { ok: false, error: "user_not_found" };
+  const [targetCourse] = await db
+    .select({ expiryPeriod: courses.expiryPeriod })
+    .from(courses)
+    .where(eq(courses.id, parsed.data.courseId))
+    .limit(1);
+
+  const expiresAt =
+    targetCourse?.expiryPeriod && targetCourse.expiryPeriod > 0
+      ? new Date(Date.now() + targetCourse.expiryPeriod * 86_400_000)
+      : null;
+
   await db
     .insert(enrollments)
-    .values({ userId: student.id, courseId: parsed.data.courseId, source: "manual" })
+    .values({
+      userId: student.id,
+      courseId: parsed.data.courseId,
+      source: "manual",
+      expiresAt,
+    })
     .onConflictDoNothing();
   await db.insert(notifications).values({
     userId: student.id,
@@ -288,7 +332,7 @@ export async function saveSettings(input: z.infer<typeof settingsSchema>): Promi
 
 /* ── granular admin permissions (legacy permissions page) ── */
 
-const SECTIONS = ['categories', 'courses', 'users', 'commerce', 'content', 'newsletters'] as const;
+const SECTIONS = ['categories', 'courses', 'users', 'commerce', 'content', 'newsletters', 'seo', 'media', 'languages', 'certificates', 'settings', 'emails', 'custom-fields', 'data-center'] as const;
 
 export async function setAdminFlags(targetUserId: string, flags: Record<string, boolean>): Promise<AdminResult> {
   const session = await auth.api.getSession({ headers: await headers() });

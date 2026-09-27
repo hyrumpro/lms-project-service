@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getUnreadCount, getMessageThreads, requireSession } from "@/server/queries/community";
+import {
+  getMessageRecipients,
+  getMessageThreads,
+  getUnreadCount,
+  requireSession,
+} from "@/server/queries/community";
+import { NewConversationDialog } from "@/components/dashboard/new-conversation-dialog";
 
 export async function generateMetadata() {
   const session = await requireSession();
@@ -12,22 +18,29 @@ export async function generateMetadata() {
 export default async function MessagesPage() {
   const session = await requireSession();
   if (!session) redirect("/sign-in");
-  const threads = await getMessageThreads(session.user.id);
+  const [threads, recipients] = await Promise.all([
+    getMessageThreads(session.user.id),
+    getMessageRecipients(session.user.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <p className="kicker">06 · Direct lines</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Messages</h1>
-        <p className="text-muted-foreground text-sm">
-          Conversations with instructors and classmates.
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <p className="kicker">06 · Direct lines</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Messages</h1>
+          <p className="text-muted-foreground text-sm">
+            Conversations with instructors and classmates.
+          </p>
+        </div>
+        <NewConversationDialog recipients={recipients} />
       </header>
 
       {threads.length === 0 ? (
-        <p className="text-muted-foreground rounded-xl border-2 border-dashed p-10 text-center text-sm">
-          No conversations yet.
-        </p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center">
+          <p className="text-muted-foreground text-sm">No conversations yet.</p>
+          <NewConversationDialog recipients={recipients} />
+        </div>
       ) : (
         <ul className="flex flex-col gap-px overflow-hidden rounded-xl border bg-border">
           {threads.map((thread) => (

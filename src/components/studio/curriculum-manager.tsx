@@ -209,15 +209,16 @@ function AddLessonForm({
 }: {
   onSubmit: (values: {
     title: string;
-    type: "video" | "audio" | "document" | "text" | "quiz";
-    provider?: "youtube" | "vimeo" | "html5" | "iframe" | "external" | "s3" | "stream";
+    type: "video" | "audio" | "document" | "text" | "quiz" | "image";
+    provider?: "youtube" | "vimeo" | "html5" | "iframe" | "external" | "s3" | "wasabi" | "google_drive" | "stream";
     url?: string;
     body?: string;
+    caption?: string;
     durationMinutes?: number;
     isFreePreview?: boolean;
   }) => void;
 }) {
-  const [type, setType] = useState<"video" | "audio" | "document" | "text" | "quiz">("video");
+  const [type, setType] = useState<"video" | "audio" | "document" | "text" | "quiz" | "image">("video");
   const [provider, setProvider] = useState("youtube");
   const [isFree, setIsFree] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -234,6 +235,7 @@ function AddLessonForm({
           provider: uploadedUrl ? (type === "video" ? "html5" : undefined) : type === "video" ? (provider as "youtube") : undefined,
           url: uploadedUrl ?? (String(fd.get("url") ?? "") || undefined),
           body: String(fd.get("body") ?? "") || undefined,
+          caption: String(fd.get("caption") ?? "") || undefined,
           durationMinutes: Number(fd.get("durationMinutes") ?? 0) || undefined,
           isFreePreview: isFree,
         });
@@ -247,7 +249,7 @@ function AddLessonForm({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {["video", "audio", "document", "text", "quiz"].map((t) => (
+          {["video", "audio", "document", "text", "quiz", "image"].map((t) => (
             <SelectItem key={t} value={t}>
               {t}
             </SelectItem>
@@ -261,7 +263,7 @@ function AddLessonForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {["youtube", "vimeo", "html5", "iframe", "external", "s3", "stream"].map((p) => (
+              {["youtube", "vimeo", "html5", "iframe", "external", "s3", "wasabi", "google_drive", "stream"].map((p) => (
                 <SelectItem key={p} value={p}>
                   {p}
                 </SelectItem>
@@ -280,6 +282,7 @@ function AddLessonForm({
             hint="Up to 512 MB. Or paste a YouTube/Vimeo/iframe URL below."
           />
           <Input name="url" placeholder="…or video URL" className="min-w-48 flex-1" />
+          <Input name="caption" placeholder="Caption .vtt URL" className="min-w-40" />
         </>
       )}
       {type === "audio" && <Input name="url" placeholder="Audio URL" className="min-w-48 flex-1" />}
@@ -291,6 +294,15 @@ function AddLessonForm({
           value={uploadedUrl}
           onChange={setUploadedUrl}
           hint="PDF, image or text — up to 100 MB."
+        />
+      )}
+      {type === "image" && (
+        <UploadField
+          bucket="lesson_files"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          label="Upload image"
+          value={uploadedUrl}
+          onChange={setUploadedUrl}
         />
       )}
       {type === "text" && (

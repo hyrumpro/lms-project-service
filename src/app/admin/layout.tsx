@@ -14,6 +14,14 @@ const NAV = [
   { href: "/admin/plans", labelKey: "plans", index: "06" },
   { href: "/admin/content", labelKey: "content", index: "07" },
   { href: "/admin/newsletters", labelKey: "newsletters", index: "08" },
+  { href: "/admin/seo", labelKey: "seo", index: "09" },
+  { href: "/admin/media", labelKey: "media", index: "10" },
+  { href: "/admin/languages", labelKey: "languages", index: "11" },
+  { href: "/admin/certificates", labelKey: "certificates", index: "12" },
+  { href: "/admin/settings", labelKey: "settings", index: "13" },
+  { href: "/admin/emails", labelKey: "emails", index: "14" },
+  { href: "/admin/custom-fields", labelKey: "customFields", index: "15" },
+  { href: "/admin/data-center", labelKey: "dataCenter", index: "16" },
 ] as const;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +32,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const flags = await getAdminFlags(session.user.id);
   const allowedNav = NAV.filter((item) => {
     const section = item.href.split("/")[2] ?? "dashboard";
-    return flags[section] !== false;
+    if (flags === null) return true;
+    return flags[section] === true;
   }).map(({ href, labelKey, index }) => ({ href, label: t(labelKey), index }));
 
   return (

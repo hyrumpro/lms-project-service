@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, count, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { courses, enrollments, notifications } from "@/db/schema";
+import { courses, courseProgress, enrollments, notifications } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 /**
@@ -63,5 +63,27 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ status: true, checked: expiring.length, notified });
+  const dripCourses = await db
+    .select({ id: courses.id })
+    .from(courses)
+    .where(eq(courses.enableDripContent, true))
+    .limit(50);
+  let dripUpdated = 0;
+  for (const course of dripCourses) {
+    const enrolled = await db
+      .select({ userId: enrollments.userId, createdAt: enrollments.createdAt })
+      .from(enrollments)
+      .where(eq(enrollments.courseId, course.id))
+      .limit(200);
+    for (const row of enrolled) {
+      const days = Math.floor((Date.now() - row.createdAt.getTime()) / 86_400_000);
+      await db
+        .update(courseProgress)
+        .set({ dripUnlockedOrder: days, updatedAt: new Date() })
+        .where(and(eq(courseProgress.userId, row.userId), eq(courseProgress.courseId, course.id)));
+      dripUpdated++;
+    }
+  }
+
+  return NextResponse.json({ status: true, checked: expiring.length, notified, dripUpdated });
 }

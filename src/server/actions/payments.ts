@@ -61,7 +61,7 @@ export async function checkCoupon(input: z.infer<typeof couponInput>) {
 }
 
 const checkoutSchema = z.object({
-  gateway: z.enum(["mock", "offline"]),
+  gateway: z.string().min(2).max(40),
   couponCode: z.string().max(40).optional().nullable(),
   giftToEmail: z.string().email().optional().nullable(),
   buyNowCourseId: z.string().optional().nullable(),
@@ -69,7 +69,7 @@ const checkoutSchema = z.object({
 
 export async function startCheckout(
   input: z.infer<typeof checkoutSchema>,
-): Promise<{ ok: boolean; error?: string; orderId?: string; total?: number }> {
+): Promise<{ ok: boolean; error?: string; orderId?: string; total?: number; redirectUrl?: string }> {
   const userId = await requireUserId();
   if (!userId) return { ok: false, error: "auth_required" };
 
@@ -100,10 +100,22 @@ export async function startCheckout(
   if (order && order.total === 0) {
     await fulfillOrder(order.id, { gateway: "coupon_zero" });
     revalidatePath("/dashboard/purchases");
-    return { ok: true, orderId: order.id, total: 0 };
+    return { ok: true, orderId: order.id, total: 0, redirectUrl: `/dashboard/invoices/${order.id}` };
   }
 
-  return { ok: true, orderId: result.orderId, total: order?.total };
+  if (input.gateway !== "mock" && input.gateway !== "offline" && order) {
+    const { startExternalCheckout } = await import("@/lib/payments");
+    const external = await startExternalCheckout(input.gateway, order.id, order.total);
+    if (!external) return { ok: false, error: "gateway_unconfigured" };
+    const { orders } = await import("@/db/schema");
+    await db
+      .update(orders)
+      .set({ gatewaySessionId: external.sessionId })
+      .where(eq(orders.id, order.id));
+    return { ok: true, orderId: order.id, total: order.total, redirectUrl: external.redirectUrl };
+  }
+
+  return { ok: true, orderId: result.orderId, total: order?.total, redirectUrl: `/checkout/pay/${result.orderId}` };
 }
 
 /** Mock gateway "payment" — dev/demo only, guarded by gateway type. */
@@ -141,7 +153,14 @@ export async function enrollFreeDirect(courseId: string): Promise<void> {
     .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
     .limit(1);
   if (!existing) {
-    await db.insert(enrollments).values({ userId, courseId, source: "free" }).onConflictDoNothing();
+    const expiresAt =
+      course.expiryPeriod && course.expiryPeriod > 0
+        ? new Date(Date.now() + course.expiryPeriod * 86_400_000)
+        : null;
+    await db
+      .insert(enrollments)
+      .values({ userId, courseId, source: "free", expiresAt })
+      .onConflictDoNothing();
     revalidatePath("/dashboard/my-courses");
   }
   redirect(`/learn/${courseId}`);

@@ -203,6 +203,7 @@ export async function getCourseReviews(courseId: string, limit = 10) {
   return db
     .select({
       id: reviews.id,
+      userId: reviews.userId,
       rating: reviews.rating,
       review: reviews.review,
       createdAt: reviews.createdAt,

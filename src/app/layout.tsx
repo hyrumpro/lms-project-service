@@ -37,6 +37,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang={locale}
+      dir={locale === "ar" || locale === "ur" ? "rtl" : "ltr"}
       suppressHydrationWarning
       className={`${outfit.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >

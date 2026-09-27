@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { LOCALE_COOKIE, locales, type Locale } from "@/i18n/request";
+import { LOCALE_COOKIE, locales, type Locale } from "@/i18n/locales";
 
 export async function setLocale(locale: string): Promise<void> {
   if (!locales.includes(locale as Locale)) return;

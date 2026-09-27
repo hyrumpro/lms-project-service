@@ -9,9 +9,20 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/auth/password-input";
 import { Spinner } from "@/components/ui/spinner";
+import { RecaptchaField, readRecaptchaToken } from "@/components/auth/recaptcha-field";
 import { authClient } from "@/lib/auth-client";
+import { assertRecaptcha, issueEmailCode } from "@/server/actions/auth-extra";
+import { applyAsInstructor } from "@/server/actions/studio";
 
-export function SignUpForm() {
+export function SignUpForm({
+  recaptchaSiteKey,
+  allowInstructor,
+  requireEmailVerification,
+}: {
+  recaptchaSiteKey?: string;
+  allowInstructor?: boolean;
+  requireEmailVerification?: boolean;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const t = useTranslations("auth");
@@ -26,6 +37,14 @@ export function SignUpForm() {
       return;
     }
     setPending(true);
+    if (recaptchaSiteKey) {
+      const captcha = await assertRecaptcha(readRecaptchaToken());
+      if (!captcha.ok) {
+        setPending(false);
+        toast.error("Complete the captcha first.");
+        return;
+      }
+    }
     const firstName = String(formData.get("firstName"));
     const lastName = String(formData.get("lastName"));
     // firstName/lastName are input-enabled additionalFields server-side
@@ -39,6 +58,16 @@ export function SignUpForm() {
     setPending(false);
     if (error) {
       toast.error(error.message ?? "Could not create your account");
+      return;
+    }
+    if (formData.get("becomeInstructor") === "on") {
+      await applyAsInstructor("Applied during sign-up.");
+    }
+    if (requireEmailVerification && formData.get("email")) {
+      await issueEmailCode(String(formData.get("email"))).catch(() => undefined);
+      toast.success("Account created — check your email.");
+      router.push("/verify-email?email=" + encodeURIComponent(String(formData.get("email"))));
+      router.refresh();
       return;
     }
     toast.success("Account created — welcome to Academy!");
@@ -72,6 +101,13 @@ export function SignUpForm() {
           <FieldLabel htmlFor="confirmPassword">{t("confirmPassword")}</FieldLabel>
           <PasswordInput id="confirmPassword" name="confirmPassword" required minLength={8} />
         </Field>
+        {allowInstructor ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="becomeInstructor" />
+            I want to teach (instructor application)
+          </label>
+        ) : null}
+        <RecaptchaField siteKey={recaptchaSiteKey ?? ""} />
         <Button type="submit" disabled={pending}>
           {pending && <Spinner data-icon="inline-start" />}
           Create account

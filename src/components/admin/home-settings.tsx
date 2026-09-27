@@ -116,12 +116,39 @@ export function HomeSectionsEditor({ sections }: { sections: { type: string }[] 
     setSelected((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
   }
 
+  function move(type: string, direction: -1 | 1) {
+    setSelected((prev) => {
+      const index = prev.indexOf(type);
+      const next = index + direction;
+      if (index < 0 || next < 0 || next >= prev.length) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.splice(next, 0, item);
+      return copy;
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3 rounded-xl border bg-card p-5">
       <p className="font-heading font-semibold">Home page sections</p>
       <p className="text-muted-foreground text-sm">
-        Toggle the blocks on the public homepage — order follows this list.
+        Toggle blocks, then move them. The public home follows this order.
       </p>
+      <div className="flex flex-col gap-2">
+        {selected.map((type) => (
+          <div key={type} className="flex items-center justify-between gap-2 text-sm">
+            <span>{SECTION_TYPES.find((section) => section.type === type)?.label ?? type}</span>
+            <span className="flex gap-1">
+              <Button type="button" size="xs" variant="outline" onClick={() => move(type, -1)}>
+                Up
+              </Button>
+              <Button type="button" size="xs" variant="outline" onClick={() => move(type, 1)}>
+                Down
+              </Button>
+            </span>
+          </div>
+        ))}
+      </div>
       <div className="grid grid-cols-2 gap-2">
         {SECTION_TYPES.map((section) => (
           <label key={section.type} className="flex items-center gap-2 text-sm">
@@ -138,9 +165,7 @@ export function HomeSectionsEditor({ sections }: { sections: { type: string }[] 
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            const result = await saveHomeSections(
-              selected.map((type) => ({ type, props: {} })),
-            );
+            const result = await saveHomeSections(selected.map((type) => ({ type, props: {} })));
             if (result.ok) {
               toast.success("Homepage updated");
               router.refresh();
@@ -151,6 +176,9 @@ export function HomeSectionsEditor({ sections }: { sections: { type: string }[] 
         {pending && <Spinner data-icon="inline-start" />}
         Publish homepage
       </Button>
+      <a href="/" className="text-coral text-sm hover:underline">
+        Preview the live homepage
+      </a>
     </div>
   );
 }

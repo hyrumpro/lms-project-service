@@ -10,6 +10,7 @@ import type { CourseCardData, getCategoryTree, getTopInstructors } from "@/serve
 import type { HomeSection } from "@/db/schema";
 import type { FrontendSettings } from "@/lib/settings";
 import type { CurrencyMeta } from "@/lib/money";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 type CategoryNode = Awaited<ReturnType<typeof getCategoryTree>>[number];
 type TopInstructor = Awaited<ReturnType<typeof getTopInstructors>>[number];
@@ -58,7 +59,7 @@ export function renderHomeSection(section: HomeSection, data: HomeSectionData): 
       return (
         <div
           key={`custom-${JSON.stringify(section.props).length}`}
-          dangerouslySetInnerHTML={{ __html: String(section.props.html ?? "") }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(section.props.html ?? "")) }}
         />
       );
     default:

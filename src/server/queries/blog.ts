@@ -67,6 +67,7 @@ export async function getPostComments(postId: string) {
     .select({
       id: postComments.id,
       body: postComments.body,
+      likes: postComments.likes,
       createdAt: postComments.createdAt,
       userName: user.name,
       userImage: user.image,

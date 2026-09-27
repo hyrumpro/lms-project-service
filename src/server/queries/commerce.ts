@@ -9,6 +9,7 @@ import {
   payouts,
   user,
 } from "@/db/schema";
+import { getSystemSettings } from "@/lib/settings";
 
 /** Commerce queries (cart, invoices, sales, payouts). */
 
@@ -85,17 +86,21 @@ export async function getInstructorSalesReport(instructorId: string) {
   const orderIds = [...new Set(items.map((i) => i.orderId))];
   if (orderIds.length === 0) return [];
 
-  const paymentRows = await db
-    .select({
-      orderId: payments.orderId,
-      gateway: payments.gateway,
-      createdAt: payments.createdAt,
-      studentName: user.name,
-    })
-    .from(payments)
-    .innerJoin(user, eq(user.id, payments.userId))
-    .where(inArray(payments.orderId, orderIds));
+  const [paymentRows, system] = await Promise.all([
+    db
+      .select({
+        orderId: payments.orderId,
+        gateway: payments.gateway,
+        createdAt: payments.createdAt,
+        studentName: user.name,
+      })
+      .from(payments)
+      .innerJoin(user, eq(user.id, payments.userId))
+      .where(inArray(payments.orderId, orderIds)),
+    getSystemSettings(),
+  ]);
 
+  const pct = (system.instructorRevenuePercent ?? 70) / 100;
   const courseTitle = new Map(courseRows.map((c) => [c.id, c.title]));
   return items
     .map((item) => {
@@ -107,7 +112,7 @@ export async function getInstructorSalesReport(instructorId: string) {
         gateway: payment.gateway,
         createdAt: payment.createdAt,
         studentName: payment.studentName,
-        instructorRevenue: Math.round(item.unitPrice * 0.7),
+        instructorRevenue: Math.round(item.unitPrice * pct),
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)

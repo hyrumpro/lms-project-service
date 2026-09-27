@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { db } from "@/db";
 import { customPages } from "@/db/schema";
 import { Button } from "@/components/ui/button";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 type Params = Promise<{ url: string }>;
 
@@ -27,7 +28,7 @@ export default async function CustomPage({ params }: { params: Params }) {
       <div className="rule-dash my-8" aria-hidden />
       <div
         className="prose-academy text-foreground/90 [&_a]:text-coral [&_a]:underline [&_h2]:font-heading [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:text-2xl [&_h2]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-4"
-        dangerouslySetInnerHTML={{ __html: page.content }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content) }}
       />
       {page.buttonTitle && (
         <Button className="mt-8" render={<Link href="/courses" />}>

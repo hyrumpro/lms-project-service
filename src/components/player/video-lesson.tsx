@@ -31,6 +31,9 @@ export function VideoLesson({
   resumeSeconds,
   isCompleted,
   previewMode = false,
+  captionUrl,
+  nextHref,
+  watermark,
 }: {
   courseId: string;
   lessonId: string;
@@ -38,15 +41,17 @@ export function VideoLesson({
   videoUrl: string;
   resumeSeconds: number;
   isCompleted: boolean;
-  /** promo preview on course pages: no progress tracking, no completion UI */
   previewMode?: boolean;
+  captionUrl?: string | null;
+  nextHref?: string | null;
+  watermark?: string | null;
 }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [saving, setSaving] = useState(false);
   const [completed, setCompleted] = useState(isCompleted);
 
-  const isNative = ["html5", "s3", "external"].includes(provider);
+  const isNative = ["html5", "s3", "wasabi", "external", "stream"].includes(provider);
   const yt = provider === "youtube" ? youtubeId(videoUrl) : null;
   const isEmbed = !isNative;
 
@@ -74,7 +79,8 @@ export function VideoLesson({
     if (video.currentTime / video.duration >= 0.9 && !completed) {
       setCompleted(true);
       await saveProgressSeconds(courseId, lessonId, video.currentTime, video.duration);
-      router.refresh();
+      if (nextHref) router.push(nextHref);
+      else router.refresh();
     }
   }
 
@@ -84,8 +90,9 @@ export function VideoLesson({
     setSaving(false);
     if (result.ok) {
       setCompleted(true);
-      toast.success("Lesson complete ✓");
-      router.refresh();
+      toast.success("Lesson complete");
+      if (nextHref) router.push(nextHref);
+      else router.refresh();
     } else {
       toast.error("Could not save progress.");
     }
@@ -94,6 +101,9 @@ export function VideoLesson({
   return (
     <div className="flex flex-col gap-4">
       <div className="relative aspect-video overflow-hidden rounded-xl border bg-black">
+        {provider === "stream" && watermark ? (
+          <span className="pointer-events-none absolute right-3 bottom-3 z-10 text-xs text-white/80">{watermark}</span>
+        ) : null}
         {isNative ? (
           <video
             ref={videoRef}
@@ -108,7 +118,7 @@ export function VideoLesson({
             }}
             onTimeUpdate={onTimeUpdate}
           >
-            <track kind="captions" />
+            <track kind="captions" src={captionUrl ?? undefined} srcLang="en" label="English" default={Boolean(captionUrl)} />
           </video>
         ) : yt ? (
           <iframe

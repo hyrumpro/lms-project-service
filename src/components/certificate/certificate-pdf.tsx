@@ -1,4 +1,4 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 /** A4-landscape diploma (legacy certificate addon parity — downloadable PDF). */
 const A = "#754ffe"; // legacy primary purple
@@ -67,12 +67,14 @@ export function CertificatePdf({
   code,
   issuedAt,
   verifyUrl,
+  qrDataUrl,
 }: {
   studentName: string;
   courseTitle: string;
   code: string;
   issuedAt: string;
   verifyUrl: string;
+  qrDataUrl?: string;
 }) {
   return (
     <Document title={`Certificate ${code} — Academy LMS`}>
@@ -93,6 +95,7 @@ export function CertificatePdf({
               <View style={styles.seal}>
                 <Text style={styles.sealText}>VERIFIED</Text>
               </View>
+              {qrDataUrl ? <Image src={qrDataUrl} style={{ width: 72, height: 72 }} /> : null}
               <View>
                 <Text style={styles.small}>ISSUED</Text>
                 <Text style={styles.smallValue}>{issuedAt}</Text>

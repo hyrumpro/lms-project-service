@@ -33,6 +33,10 @@ export function CourseForum({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+  const visible = questions.filter((question) =>
+    `${question.title} ${question.body}`.toLowerCase().includes(query.trim().toLowerCase()),
+  );
 
   if (!enrolled) {
     return (
@@ -81,8 +85,15 @@ export function CourseForum({
         </Button>
       </form>
 
+      <Input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Search questions"
+        aria-label="Search questions"
+      />
+
       <ul className="flex flex-col gap-4">
-        {questions.map((question) => (
+        {visible.map((question) => (
           <QuestionRow key={question.id} courseId={courseId} question={question} labels={labels} />
         ))}
         {questions.length === 0 && (

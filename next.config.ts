@@ -47,9 +47,8 @@ async function redirects() {
     { source: "/home/faq", destination: "/faq", permanent: true },
     { source: "/home/contact_us", destination: "/contact", permanent: true },
     // legacy addon routes → catalog
-    { source: "/course_bundles", destination: "/courses", permanent: true },
-    { source: "/ebook", destination: "/courses", permanent: true },
-    { source: "/tutors", destination: "/instructor", permanent: true },
+    { source: "/course_bundles", destination: "/bundles", permanent: true },
+    { source: "/ebook", destination: "/ebooks", permanent: true },
   ];
 }
 

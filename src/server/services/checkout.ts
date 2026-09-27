@@ -11,77 +11,15 @@ import {
   orderItems,
   orders,
   payments,
+  payouts,
   user,
 } from "@/db/schema";
 import { getSystemSettings } from "@/lib/settings";
+import { effectiveCoursePrice, priceCart } from "@/lib/pricing";
+import { sendOrderConfirmationEmail } from "@/server/services/email";
 
-/**
- * Checkout engine (spec §7.5). Money in minor units.
- * Coupon math per §3.9: coupon applies to the already-discounted price.
- */
-
-export type PricedLine = {
-  courseId: string;
-  title: string;
-  listPrice: number; // sticker price (minor units)
-  payable: number; // after course-level discount, before coupon
-  couponDiscount: number; // this line's share of the coupon
-  net: number; // payable - couponDiscount
-};
-
-export type PricedCart = {
-  lines: PricedLine[];
-  subtotal: number;
-  couponDiscount: number;
-  tax: number;
-  total: number;
-};
-
-export function effectiveCoursePrice(course: {
-  isFree: boolean;
-  price: number;
-  discountEnabled: boolean;
-  discountedPrice: number;
-}): number {
-  if (course.isFree) return 0;
-  if (course.discountEnabled && course.discountedPrice > 0) return course.discountedPrice;
-  return course.price;
-}
-
-/** §3.9: price_with_course_discount − (price_with_course_discount × pct / 100) */
-export function priceCart(
-  courseRows: (typeof courses.$inferSelect)[],
-  coupon: { discountPercentage: number } | null,
-  taxPercent: number,
-): PricedCart {
-  const lines: PricedLine[] = courseRows.map((course) => {
-    const payable = effectiveCoursePrice(course);
-    const couponDiscount = coupon
-      ? Math.floor((payable * coupon.discountPercentage) / 100)
-      : 0;
-    return {
-      courseId: course.id,
-      title: course.title,
-      listPrice: course.isFree ? 0 : course.price,
-      payable,
-      couponDiscount,
-      net: payable - couponDiscount,
-    };
-  });
-
-  const subtotal = lines.reduce((s, l) => s + l.listPrice, 0);
-  const couponDiscountTotal = lines.reduce((s, l) => s + l.couponDiscount, 0);
-  const taxable = lines.reduce((s, l) => s + l.net, 0);
-  const tax = Math.floor((taxable * taxPercent) / 100);
-
-  return {
-    lines,
-    subtotal,
-    couponDiscount: couponDiscountTotal,
-    tax,
-    total: taxable + tax,
-  };
-}
+export { effectiveCoursePrice, priceCart };
+export type { PricedCart, PricedLine } from "@/lib/pricing";
 
 export async function findValidCoupon(code: string) {
   const [coupon] = await db
@@ -167,7 +105,11 @@ export async function createOrder(input: {
  */
 export async function fulfillOrder(
   orderId: string,
-  opts: { transactionId?: string; gateway?: string } = {},
+  opts: {
+    transactionId?: string;
+    gateway?: string;
+    enrollmentSource?: "purchase" | "gift" | "bundle";
+  } = {},
 ): Promise<{ ok: boolean; error?: string }> {
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   if (!order) return { ok: false, error: "not_found" };
@@ -224,7 +166,11 @@ export async function fulfillOrder(
       courseRows.map((course) => ({
         userId: recipientId,
         courseId: course.id,
-        source: order.giftToEmail ? ("gift" as const) : ("purchase" as const),
+        source: opts.enrollmentSource ?? (order.giftToEmail ? ("gift" as const) : ("purchase" as const)),
+        expiresAt:
+          course.expiryPeriod && course.expiryPeriod > 0
+            ? new Date(Date.now() + course.expiryPeriod * 86_400_000)
+            : null,
       })),
     )
     .onConflictDoNothing();
@@ -247,6 +193,45 @@ export async function fulfillOrder(
   });
 
   await db.delete(cartItems).where(eq(cartItems.userId, order.userId));
+
+  if (order.affiliateCode && order.total > 0) {
+    const { affiliates } = await import("@/db/schema");
+    const [affiliate] = await db
+      .select()
+      .from(affiliates)
+      .where(eq(affiliates.code, order.affiliateCode))
+      .limit(1);
+    if (affiliate && affiliate.userId !== order.userId) {
+      const commission = Math.floor((order.total * affiliate.commissionPercent) / 100);
+      if (commission > 0) {
+        await db.insert(payouts).values({
+          instructorId: affiliate.userId,
+          amount: commission,
+          method: "affiliate",
+          status: "requested",
+          note: `Affiliate commission for order ${order.id}`,
+        });
+      }
+    }
+  }
+
+  // Dispatch order confirmation email (non-blocking)
+  const [buyer] = await db
+    .select({ email: user.email, name: user.name })
+    .from(user)
+    .where(eq(user.id, order.userId))
+    .limit(1);
+
+  if (buyer?.email) {
+    sendOrderConfirmationEmail({
+      to: buyer.email,
+      orderId: order.id,
+      total: order.total,
+      items: items.map((i) => ({ title: i.titleSnapshot, price: i.unitPrice })),
+      userName: buyer.name,
+    }).catch((err) => console.error("[email:checkout]", err));
+  }
+
   return { ok: true };
 }
 

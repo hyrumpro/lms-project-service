@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { getTableColumns } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
@@ -186,4 +186,19 @@ export async function getDashboardOverview(userId: string) {
   const completed = myCourses.filter((c) => c.percent >= 100);
   const notStarted = myCourses.filter((c) => c.percent === 0);
   return { myCourses, inProgress, completed, notStarted, unread };
+}
+
+export async function getMessageRecipients(excludeUserId: string) {
+  return db
+    .select({
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      isInstructor: user.isInstructor,
+      image: user.image,
+    })
+    .from(user)
+    .where(and(ne(user.id, excludeUserId), eq(user.status, "active")))
+    .orderBy(asc(user.name))
+    .limit(100);
 }

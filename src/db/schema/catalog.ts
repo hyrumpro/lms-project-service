@@ -27,6 +27,7 @@ export const lessonTypeEnum = pgEnum("lesson_type", [
   "document",
   "text",
   "quiz",
+  "image",
 ]);
 
 export const videoProviderEnum = pgEnum("video_provider", [
@@ -103,6 +104,8 @@ export const courses = pgTable("courses", {
   metaKeywords: text("meta_keywords"),
   metaDescription: text("meta_description"),
   customFieldValues: jsonb("custom_field_values").$type<Record<string, unknown>>(),
+  /** 0 = completion only. Otherwise the best quiz percent must reach this. */
+  certificateQuizThreshold: integer("certificate_quiz_threshold"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -163,6 +166,7 @@ export const lessons = pgTable("lessons", {
   isFreePreview: boolean("is_free_preview").notNull().default(false),
   quizMaxAttempts: integer("quiz_max_attempts").notNull().default(1),
   durationSeconds: integer("duration_seconds").notNull().default(0),
+  dripDay: integer("drip_day").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
