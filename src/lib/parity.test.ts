@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
 import { verifyRazorpaySignature, verifyRegionalCallback } from "@/lib/payments";
 import { answersMatch, enrollmentState } from "@/lib/quiz-grade";
 import { priceCart, splitRevenue } from "@/lib/pricing";
+import { allowMockGateway, isProduction } from "@/lib/env";
 
 describe("quiz grading", () => {
   it("matches choice answers after sorting", () => {
@@ -60,5 +61,34 @@ describe("webhook signatures", () => {
   it("rejects a razorpay signature when the secret is missing", () => {
     delete process.env.RAZORPAY_KEY_SECRET;
     expect(verifyRazorpaySignature("order", "pay", "sig")).toBe(false);
+  });
+});
+
+describe("mock gateway gating (security)", () => {
+  const saved = { ...process.env };
+  const env = process.env as Record<string, string | undefined>;
+  afterEach(() => {
+    for (const key of Object.keys(env)) if (!(key in saved)) delete env[key];
+    for (const key of Object.keys(saved)) env[key] = saved[key] as string | undefined;
+  });
+
+  it("allows the mock gateway outside production", () => {
+    env.NODE_ENV = "development";
+    delete env.ALLOW_MOCK_GATEWAY;
+    expect(allowMockGateway()).toBe(true);
+    expect(isProduction()).toBe(false);
+  });
+
+  it("disables the mock gateway in production", () => {
+    env.NODE_ENV = "production";
+    delete env.ALLOW_MOCK_GATEWAY;
+    expect(allowMockGateway()).toBe(false);
+    expect(isProduction()).toBe(true);
+  });
+
+  it("re-enables the mock gateway with the staging opt-in", () => {
+    env.NODE_ENV = "production";
+    env.ALLOW_MOCK_GATEWAY = "1";
+    expect(allowMockGateway()).toBe(true);
   });
 });

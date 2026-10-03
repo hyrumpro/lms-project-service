@@ -6,15 +6,18 @@ import { auth } from "@/lib/auth";
 
 /**
  * GET /api/cron — scheduled maintenance (spec §4.4 jobs, legacy cronjob page).
- * Header: x-cron-secret (CRON_SECRET env). Vercel Cron / external scheduler friendly.
- * Tasks: notify enrollments expiring within 3 days.
+ * Auth: CRON_SECRET via the `x-cron-secret` header (external schedulers) OR a
+ * `?secret=` query param (Vercel native cron, which can't set custom headers —
+ * put the secret in the Vercel dashboard crontab path), OR an admin session.
+ * Tasks: notify enrollments expiring within 3 days; refresh drip unlocks.
  */
 export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
-  const secret = request.headers.get("x-cron-secret");
+  const url = new URL(request.url);
+  const secret = request.headers.get("x-cron-secret") ?? url.searchParams.get("secret") ?? undefined;
   const authorized =
     (session?.user.role === "admin" && Boolean(session)) ||
-    (process.env.CRON_SECRET && secret === process.env.CRON_SECRET);
+    (process.env.CRON_SECRET ? secret === process.env.CRON_SECRET : false);
   if (!authorized) {
     return NextResponse.json({ status: false, message: "forbidden" }, { status: 403 });
   }

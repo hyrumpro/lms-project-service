@@ -11,6 +11,7 @@ import { getCartPreview } from "@/server/queries/cart-preview";
 import { RemoveFromCartButton, CheckoutPanel } from "@/components/checkout/cart-controls";
 import { db } from "@/db";
 import { gatewayConfigs } from "@/db/schema";
+import { allowMockGateway } from "@/lib/env";
 import { eq } from "drizzle-orm";
 
 export const metadata = { title: "Shopping cart" };
@@ -27,12 +28,14 @@ export default async function CartPage({
   const cartRows = buy ? [] : await getCart(session.user.id);
   const preview = await getCartPreview(session.user.id, buy ? [buy] : cartRows.map((c) => c.id));
   const isBuyNow = Boolean(buy);
-  const enabled = await db
+  const enabledRows = await db
     .select({ identifier: gatewayConfigs.identifier, title: gatewayConfigs.title })
     .from(gatewayConfigs)
     .where(eq(gatewayConfigs.enabled, true));
+  const mockAllowed = allowMockGateway();
+  const enabled = enabledRows.filter((g) => mockAllowed || g.identifier !== "mock");
   const gateways = enabled.length > 0 ? enabled : [
-    { identifier: "mock", title: "Sandbox Bank" },
+    ...(mockAllowed ? [{ identifier: "mock", title: "Sandbox Bank" }] : []),
     { identifier: "offline", title: "Bank transfer" },
   ];
 

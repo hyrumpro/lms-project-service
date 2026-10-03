@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { cartItems, courses, enrollments } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { allowMockGateway } from "@/lib/env";
 import {
   createOrder,
   findValidCoupon,
@@ -118,8 +119,9 @@ export async function startCheckout(
   return { ok: true, orderId: result.orderId, total: order?.total, redirectUrl: `/checkout/pay/${result.orderId}` };
 }
 
-/** Mock gateway "payment" — dev/demo only, guarded by gateway type. */
+/** Mock gateway "payment" — dev/demo only, guarded by gateway type and environment. */
 export async function mockPay(orderId: string): Promise<void> {
+  if (!allowMockGateway()) redirect("/dashboard");
   const userId = await requireUserId();
   if (!userId) redirect("/sign-in");
   const { orders } = await import("@/db/schema");

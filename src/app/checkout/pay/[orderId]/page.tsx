@@ -9,6 +9,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { orders, orderItems } from "@/db/schema";
+import { allowMockGateway } from "@/lib/env";
 import { eq } from "drizzle-orm";
 import { cancelOrder } from "@/server/actions/payments";
 import { MockPayButtons } from "@/components/checkout/mock-pay-buttons";
@@ -25,6 +26,7 @@ export default async function MockGatewayPage({ params }: { params: Params }) {
 
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   if (!order || order.userId !== session.user.id) notFound();
+  if (order.gateway === "mock" && !allowMockGateway()) redirect("/dashboard");
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
 
   if (order.status === "paid") {

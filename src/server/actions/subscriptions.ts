@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { plans, subscriptions } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { allowMockGateway } from "@/lib/env";
 
 export type SimpleResult = { ok: true } | { ok: false; error: string };
 
@@ -36,6 +37,7 @@ const periodEnd = (interval: "month" | "year"): Date => {
 export async function subscribeToPlan(planId: string): Promise<SimpleResult> {
   const userId = await requireUserId();
   if (!userId) return { ok: false, error: "auth_required" };
+  if (!allowMockGateway()) return { ok: false, error: "gateway_unavailable" };
 
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId)).limit(1);
   if (!plan || !plan.isActive) return { ok: false, error: "not_found" };

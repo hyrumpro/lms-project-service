@@ -3,15 +3,25 @@ import { and, desc, eq, ilike } from "drizzle-orm";
 import { db } from "@/db";
 import { account, categories, courses, enrollments, lessons, sections, user, wishlistItems, cartItems, forumQuestions, payouts, liveClasses, courseInstructors } from "@/db/schema";
 import { bearerToken, signLegacyToken, verifyLegacyToken } from "@/lib/jwt-legacy";
+import { auth } from "@/lib/auth";
 import { hashPassword } from "better-auth/crypto";
 import { consumeEmailCode, issueEmailCode } from "@/server/actions/auth-extra";
 import { gradeQuiz } from "@/server/services/quiz-submit";
 import { searchCourseForum } from "@/server/queries/forum";
 
+/**
+ * Resolve the acting user for a /api/v1 request. Prefers a legacy HS256 bearer
+ * token (existing mobile apps); falls back to the Better-Auth session cookie so
+ * new/secure clients can authenticate without the public legacy JWT secret.
+ */
 async function userIdFrom(request: Request) {
   const token = bearerToken(request);
-  if (!token) return null;
-  return (await verifyLegacyToken(token))?.userId ?? null;
+  if (token) {
+    const legacy = await verifyLegacyToken(token);
+    if (legacy?.userId) return legacy.userId;
+  }
+  const session = await auth.api.getSession({ headers: request.headers });
+  return session?.user.id ?? null;
 }
 
 export async function handleMobile(request: Request, slug: string[]) {
