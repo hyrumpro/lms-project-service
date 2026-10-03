@@ -6,19 +6,12 @@ import { courseHref } from "@/lib/slug";
 import { coursePriceLabel, type CurrencyMeta, type CoursePricing } from "@/lib/money";
 import type { CourseCardData } from "@/server/queries/catalog";
 
-const GRADIENTS = [
-  "from-indigo-500 to-purple-600",
-  "from-rose-500 to-orange-500",
-  "from-emerald-500 to-teal-600",
-  "from-sky-500 to-blue-700",
-  "from-fuchsia-500 to-pink-600",
-  "from-amber-500 to-red-600",
-];
+const THUMBS = ["thumb-a", "thumb-b", "thumb-c", "thumb-d"] as const;
 
-function gradientFor(id: string): string {
+function thumbFor(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return GRADIENTS[hash % GRADIENTS.length];
+  return THUMBS[hash % THUMBS.length];
 }
 
 export function CourseCard({
@@ -42,24 +35,27 @@ export function CourseCard({
     >
       <div
         className={cn(
-          "relative flex aspect-video items-center justify-center bg-gradient-to-br",
-          gradientFor(course.id),
+          "relative flex aspect-video items-center justify-center",
+          thumbFor(course.id),
         )}
       >
-        <span className="font-heading text-5xl font-semibold text-white/85">
+        <span
+          aria-hidden
+          className="font-heading text-6xl font-semibold text-background/90 dark:text-foreground/90"
+        >
           {(course.categoryName ?? course.title).charAt(0).toUpperCase()}
         </span>
         {price.label === "Free" ? (
-          <Badge className="absolute top-3 -right-1 rotate-3 rounded-sm border-2 border-foreground/10 bg-sun text-xs font-bold text-sun-foreground shadow-sm">
+          <Badge className="absolute top-3 -right-1 rotate-3 rounded-sm border border-foreground/10 bg-sun text-xs font-bold text-sun-foreground">
             FREE
           </Badge>
         ) : (
-          <span className="absolute -right-1 bottom-3 rotate-[-3deg] rounded-sm border-2 border-ink/10 bg-card px-2 py-0.5 text-sm font-bold shadow-sm">
+          <span className="absolute -right-1 bottom-3 rotate-[-3deg] rounded-sm border border-foreground/10 bg-card px-2 py-0.5 text-sm font-bold tabular-nums">
             {price.label}
           </span>
         )}
         {price.original && (
-          <span className="text-white/70 absolute top-3 left-3 text-xs font-medium line-through">
+          <span className="absolute top-3 left-3 text-xs font-medium line-through text-background/75 dark:text-foreground/75">
             {price.original}
           </span>
         )}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getFrontendSettings, getSystemSettings } from "@/lib/settings";
 import { NewsletterForm } from "@/components/layout/newsletter-form";
@@ -16,27 +17,27 @@ export async function Footer() {
         </div>
         <nav className="flex flex-col gap-2 text-sm" aria-label="Learn">
           <p className="kicker">{t("learn")}</p>
-          <a href="/courses" className="text-muted-foreground hover:text-foreground">
+          <Link href="/courses" className="text-muted-foreground hover:text-foreground">
             Course catalog
-          </a>
-          <a href="/pricing" className="text-muted-foreground hover:text-foreground">
+          </Link>
+          <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
             Pricing
-          </a>
-          <a href="/blog" className="text-muted-foreground hover:text-foreground">
+          </Link>
+          <Link href="/blog" className="text-muted-foreground hover:text-foreground">
             Blog
-          </a>
-          <a href="/courses?price=free" className="text-muted-foreground hover:text-foreground">
+          </Link>
+          <Link href="/courses?price=free" className="text-muted-foreground hover:text-foreground">
             Free courses
-          </a>
+          </Link>
         </nav>
         <nav className="flex flex-col gap-2 text-sm" aria-label="Academy">
           <p className="kicker">Academy</p>
-          <a href="/sign-up" className="text-muted-foreground hover:text-foreground">
+          <Link href="/sign-up" className="text-muted-foreground hover:text-foreground">
             Become an instructor
-          </a>
-          <a href="/sign-in" className="text-muted-foreground hover:text-foreground">
+          </Link>
+          <Link href="/sign-in" className="text-muted-foreground hover:text-foreground">
             Sign in
-          </a>
+          </Link>
         </nav>
       </div>
     </footer>

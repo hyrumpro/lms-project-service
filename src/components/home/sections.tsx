@@ -82,7 +82,8 @@ export async function HeroSection({
         aria-hidden
         className="absolute inset-0"
         style={{
-          backgroundImage: "radial-gradient(oklch(0.51 0.22 291 / 0.10) 1px, transparent 1px)",
+          backgroundImage:
+            "radial-gradient(color-mix(in oklab, var(--primary) 12%, transparent) 1px, transparent 1px)",
           backgroundSize: "24px 24px",
           maskImage: "linear-gradient(to bottom, black 50%, transparent)",
         }}

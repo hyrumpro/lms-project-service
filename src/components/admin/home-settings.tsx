@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -176,9 +177,9 @@ export function HomeSectionsEditor({ sections }: { sections: { type: string }[] 
         {pending && <Spinner data-icon="inline-start" />}
         Publish homepage
       </Button>
-      <a href="/" className="text-coral text-sm hover:underline">
+      <Link href="/" className="text-coral text-sm hover:underline">
         Preview the live homepage
-      </a>
+      </Link>
     </div>
   );
 }
