@@ -370,7 +370,7 @@ export async function BecomeInstructorSection() {
         />
         <Badge className="bg-white/15">{t("ctaBadge")}</Badge>
         <h2 className="font-heading max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-          {t("ctaTitle1")} <span className="mark italic text-sun">{t("ctaAccent")}</span>
+          {t("ctaTitle1")} <span className="mark italic">{t("ctaAccent")}</span>
         </h2>
         <p className="text-primary-foreground/80 max-w-xl text-sm sm:text-base">{t("ctaBody")}</p>
         <Button size="lg" variant="secondary" render={<Link href="/sign-up" />}>

@@ -39,7 +39,7 @@ export function AuthShell({
           <h1 className="font-heading mt-6 max-w-sm text-4xl font-semibold leading-tight tracking-tight">
             {title.split(" ").map((word, i) =>
               word.toLowerCase() === accentWord.toLowerCase() ? (
-                <span key={i} className="mark italic text-sun">
+                <span key={i} className="mark italic">
                   {word}{" "}
                 </span>
               ) : (

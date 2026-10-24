@@ -201,8 +201,8 @@ export async function Header() {
             </>
           ) : (
             <>
-              <Button variant="ghost" nativeButton={false} render={<Link href="/sign-in" />}>{t("signIn")}</Button>
-              <Button nativeButton={false} render={<Link href="/sign-up" />}>{t("signUp")}</Button>
+              <Button variant="ghost" className="hidden sm:inline-flex" nativeButton={false} render={<Link href="/sign-in" />}>{t("signIn")}</Button>
+              <Button className="hidden sm:inline-flex" nativeButton={false} render={<Link href="/sign-up" />}>{t("signUp")}</Button>
             </>
           )}
         </div>
