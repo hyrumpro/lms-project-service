@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,6 @@ const COPY = {
     kicker: "Portfolio · Case study",
     role: "Full Stack Developer",
     tags: "MERN · Next.js · Web3 & AI",
-    place: "Área metropolitana de Trujillo",
     uni: "Brigham Young University – Idaho",
     lead: "This is a production-grade LMS marketplace built end-to-end — a complete rebuild of a legacy PHP system into modern Next.js, with courses, video lessons, quizzes, subscriptions, payments and a full admin suite.",
     skillsTitle: "Skills showcased in this project",
@@ -53,7 +52,6 @@ const COPY = {
     kicker: "Portafolio · Caso de estudio",
     role: "Desarrollador Full Stack",
     tags: "MERN · Next.js · Web3 & AI",
-    place: "Área metropolitana de Trujillo",
     uni: "Brigham Young University – Idaho",
     lead: "Un marketplace educativo de nivel producción construido de punta a punta — la reconversión completa de un sistema legacy en PHP a Next.js moderno: cursos, lecciones en video, cuestionarios, suscripciones, pagos y un panel administrativo completo.",
     skillsTitle: "Habilidades demostradas en este proyecto",
@@ -148,12 +146,9 @@ export function PortfolioModal() {
             </div>
           </div>
           <div className="text-muted-foreground mt-2 flex flex-col gap-1 text-xs">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="size-3.5" /> {t.place}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <GraduationCap className="size-3.5" /> {t.uni}
-              </span>
+            <span className="flex items-center gap-1.5">
+              <GraduationCap className="size-3.5" /> {t.uni}
+            </span>
           </div>
         </DialogHeader>
 
