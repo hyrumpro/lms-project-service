@@ -174,3 +174,21 @@ curl -i -X POST http://localhost:3100/api/auth/sign-in/email \
   -d '{"email":"john@academy-next.test","password":"SuperSecret123!"}'
 ```
 200 = creds fine, the problem is elsewhere (e.g. wrong `DATABASE_URL` for the deployment).
+
+## Deployment notes
+
+### Vercel Hobby plan: cron must be daily
+
+Hobby accounts allow only **one run per day** for cron jobs. `vercel.json` therefore
+schedules `/api/cron` daily at 03:00 UTC (`0 3 * * *`). The job's work
+(expiring-enrollment reminders, deduplicated over a 3-day window) is fully daily-safe.
+
+Want hourly checks without upgrading Vercel? Use any free external scheduler
+(cron-job.org, GitHub Actions) hitting:
+
+```
+GET https://your-app.vercel.app/api/cron
+x-cron-secret: $CRON_SECRET
+```
+
+and remove the `crons` block from `vercel.json`.
