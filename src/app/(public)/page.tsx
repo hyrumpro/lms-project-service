@@ -37,6 +37,7 @@ export default async function HomePage() {
         renderHomeSection(section, {
           currency: system,
           topCourses: data.topCourses,
+          latestCourses: data.latestCourses,
           categoryTree: data.categoryTree,
           categoryCounts: data.categoryCounts,
           instructors: data.instructors,

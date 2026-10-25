@@ -25,9 +25,10 @@ export type HomeTestimonial = {
 };
 
 export async function getHomeSectionData() {
-  const [courses, categoryTree, categoryCounts, instructors, heroStats, testimonials] =
+  const [courses, latest, categoryTree, categoryCounts, instructors, heroStats, testimonials] =
     await Promise.all([
       listCourses({ sort: "popular", limit: 8 }),
+      listCourses({ limit: 4 }),
       getCategoryTree(),
       getCategoryCounts(),
       getTopInstructors(4),
@@ -38,6 +39,7 @@ export async function getHomeSectionData() {
 
   return {
     topCourses: courses.items,
+    latestCourses: latest.items,
     categoryTree,
     categoryCounts,
     instructors,

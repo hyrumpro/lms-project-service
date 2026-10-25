@@ -14,6 +14,7 @@ import { saveHomeSections, saveSettings } from "@/server/actions/admin";
 const SECTION_TYPES = [
   { type: "hero", label: "Hero banner + search" },
   { type: "topCourses", label: "Top courses" },
+  { type: "latestCourses", label: "Latest courses" },
   { type: "topCategories", label: "Top categories" },
   { type: "topInstructors", label: "Top instructors" },
   { type: "testimonials", label: "Testimonials (reviews)" },
@@ -110,7 +111,7 @@ export function HomeSectionsEditor({ sections }: { sections: { type: string }[] 
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<string[]>(
-    sections.length > 0 ? sections.map((s) => s.type) : ["hero", "topCourses", "topCategories", "topInstructors", "testimonials", "faqPreview", "latestBlog", "becomeInstructor"],
+    sections.length > 0 ? sections.map((s) => s.type) : ["hero", "topCourses", "latestCourses", "topCategories", "topInstructors", "testimonials", "faqPreview", "latestBlog", "becomeInstructor"],
   );
 
   function toggle(type: string, checked: boolean) {

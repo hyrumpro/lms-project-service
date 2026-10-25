@@ -19,6 +19,7 @@ type PostCard = { id: string; title: string; slug: string; description: string |
 export type HomeSectionData = {
   currency: CurrencyMeta;
   topCourses: CourseCardData[];
+  latestCourses: CourseCardData[];
   categoryTree: CategoryNode[];
   categoryCounts: Map<string, number>;
   instructors: TopInstructor[];
@@ -41,6 +42,8 @@ export function renderHomeSection(section: HomeSection, data: HomeSectionData): 
       return <HeroSection key={section.type} frontend={data.frontend} stats={data.heroStats} />;
     case "topCourses":
       return <TopCoursesSection key={section.type} courses={data.topCourses} currency={data.currency} />;
+    case "latestCourses":
+      return <LatestCoursesSection key={section.type} courses={data.latestCourses} currency={data.currency} />;
     case "topCategories":
       return (
         <TopCategoriesSection key={section.type} tree={data.categoryTree} counts={data.categoryCounts} />
@@ -187,6 +190,28 @@ export async function TopCoursesSection({
   return (
     <SectionShell title={t("topCourses")} index="02" href="/courses?sort=popular">
       <p className="text-muted-foreground -mt-4 mb-6 text-sm">{t("topCoursesSub")}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {courses.map((course) => (
+          <CourseCard key={course.id} course={course} currency={currency} />
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+/* legacy: "top ten latest courses" (home_1 eLatestcourse) */
+export async function LatestCoursesSection({
+  courses,
+  currency,
+}: {
+  courses: CourseCardData[];
+  currency: CurrencyMeta;
+}) {
+  const t = await getTranslations("home");
+  if (courses.length === 0) return null;
+  return (
+    <SectionShell title={t("latestCourses")} index={"02 · " + t("justReleased")} href="/courses">
+      <p className="text-muted-foreground -mt-4 mb-6 text-sm">{t("justReleasedSub")}</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {courses.map((course) => (
           <CourseCard key={course.id} course={course} currency={currency} />

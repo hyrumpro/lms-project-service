@@ -48,7 +48,10 @@
     "ctaTitle1": "Enseña lo que sabes.",
     "ctaAccent": "Empieza ya.",
     "ctaBody": "Aplica como instructor, se aprueba tu perfil y abre tu propio estudio — con creador de cursos, cuestionarios, ventas y pagos incluidos.",
-    "ctaButton": "Conviértete en instructor"
+    "ctaButton": "Conviértete en instructor",
+    "latestCourses": "Últimos cursos",
+    "justReleased": "Recién publicados",
+    "justReleasedSub": "Lo más nuevo de nuestros instructores — las últimas incorporaciones al catálogo."
   },
   "auth": {
     "signInKicker": "Iniciar sesión",

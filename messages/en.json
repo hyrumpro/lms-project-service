@@ -148,7 +148,10 @@
     "ctaTitle1": "Teach what you know.",
     "ctaAccent": "Start now.",
     "ctaBody": "Apply as an instructor, get approved, and open your own studio — curriculum builder, quizzes, sales and payouts included.",
-    "ctaButton": "Become an instructor"
+    "ctaButton": "Become an instructor",
+    "latestCourses": "Latest courses",
+    "justReleased": "Just released",
+    "justReleasedSub": "Fresh from our instructors — the newest additions to the catalog."
   },
   "auth": {
     "signInKicker": "Sign in",

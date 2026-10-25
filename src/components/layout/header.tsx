@@ -77,6 +77,14 @@ export async function Header() {
                   {link.label}
                 </Link>
               ))}
+              {user && (
+                <Link
+                  href="/dashboard"
+                  className="text-coral py-2.5 pl-3 text-sm font-medium hover:underline"
+                >
+                  {t("dashboard")}
+                </Link>
+              )}
               {!user && (
                 <>
                   <div className="rule-dash my-2" aria-hidden />
