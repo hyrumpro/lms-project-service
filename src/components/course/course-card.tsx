@@ -35,16 +35,32 @@ export function CourseCard({
     >
       <div
         className={cn(
-          "relative flex aspect-video items-center justify-center",
+          "relative flex aspect-video items-center justify-center overflow-hidden",
           thumbFor(course.id),
         )}
       >
-        <span
-          aria-hidden
-          className="font-heading text-6xl font-semibold text-background/90 dark:text-foreground/90"
-        >
-          {(course.categoryName ?? course.title).charAt(0).toUpperCase()}
-        </span>
+        {course.thumbnail ? (
+          <>
+            <img
+              src={course.thumbnail}
+              alt={`${course.title}${course.categoryName ? ` — ${course.categoryName}` : ""} course cover`}
+              className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              loading="lazy"
+              decoding="async"
+            />
+            <span
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent"
+            />
+          </>
+        ) : (
+          <span
+            aria-hidden
+            className="font-heading text-6xl font-semibold text-background/90 dark:text-foreground/90"
+          >
+            {(course.categoryName ?? course.title).charAt(0).toUpperCase()}
+          </span>
+        )}
         {price.label === "Free" ? (
           <Badge className="absolute top-3 -right-1 rotate-3 rounded-sm border border-foreground/10 bg-sun text-xs font-bold text-sun-foreground">
             FREE
@@ -55,7 +71,7 @@ export function CourseCard({
           </span>
         )}
         {price.original && (
-          <span className="absolute top-3 left-3 text-xs font-medium line-through text-background/75 dark:text-foreground/75">
+          <span className="bg-background/80 text-foreground/80 absolute top-3 left-3 rounded px-1.5 py-0.5 text-xs font-medium line-through backdrop-blur-sm">
             {price.original}
           </span>
         )}

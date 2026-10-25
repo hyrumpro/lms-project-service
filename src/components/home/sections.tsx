@@ -163,9 +163,19 @@ export async function TopCategoriesSection({
               href={`/courses?category=${category.slug}`}
               className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50"
             >
-              <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg">
-                <Users className="size-5" />
-              </div>
+              {category.thumbnail ? (
+                <img
+                  src={category.thumbnail}
+                  alt={`${category.name} courses`}
+                  className="size-10 shrink-0 rounded-lg object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg">
+                  <Users className="size-5" />
+                </div>
+              )}
               <div className="flex flex-col">
                 <span className="font-medium">{category.name}</span>
                 <span className="text-muted-foreground text-sm">{total} courses</span>

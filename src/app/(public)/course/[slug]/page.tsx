@@ -141,15 +141,26 @@ export default async function CoursePage({ params }: { params: Params }) {
             />
           ) : (
             <div className="bg-primary relative flex aspect-video items-center justify-center overflow-hidden rounded-xl">
-              <div
-                aria-hidden
-                className="absolute inset-0 opacity-30"
-                style={{
-                  backgroundImage: "radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)",
-                  backgroundSize: "22px 22px",
-                }}
-              />
-              <span className="text-white/90 relative text-lg font-medium">
+              {course.thumbnail ? (
+                <>
+                  <img
+                    src={course.thumbnail}
+                    alt={`${course.title} cover`}
+                    className="absolute inset-0 size-full object-cover"
+                  />
+                  <span aria-hidden className="absolute inset-0 bg-black/30" />
+                </>
+              ) : (
+                <div
+                  aria-hidden
+                  className="absolute inset-0 opacity-30"
+                  style={{
+                    backgroundImage: "radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)",
+                    backgroundSize: "22px 22px",
+                  }}
+                />
+              )}
+              <span className="text-white/90 relative rounded bg-black/35 px-3 py-1 text-lg font-medium">
                 {course.title}
               </span>
             </div>

@@ -35,6 +35,7 @@ import {
   wishlistItems,
 } from "@/db/schema";
 import { slugify } from "@/lib/slug";
+import { CATEGORY_IMAGES, COURSE_IMAGES, INSTRUCTOR_IMAGES } from "@/lib/media";
 
 /**
  * Dev seed — wipes and repopulates demo data (spec §7.2–7.4).
@@ -49,6 +50,7 @@ async function makeUser(opts: {
   lastName: string;
   title?: string;
   biography?: string;
+  image?: string;
   role?: "student" | "admin";
   isInstructor?: boolean;
 }) {
@@ -65,6 +67,7 @@ async function makeUser(opts: {
     lastName: opts.lastName,
     title: opts.title,
     biography: opts.biography,
+    image: opts.image,
     role: opts.role ?? "student",
     isInstructor: opts.isInstructor ?? false,
     status: "active",
@@ -136,6 +139,7 @@ async function main() {
     lastName: "Chen",
     title: "Product Designer & Front-end Dev",
     biography: "12 years designing and building interfaces. Ex-Stripe.",
+    image: INSTRUCTOR_IMAGES["sarah@academy-next.test"],
     isInstructor: true,
   });
   const miguelId = await makeUser({
@@ -144,6 +148,7 @@ async function main() {
     lastName: "Santos",
     title: "Full-stack Engineer",
     biography: "Ships web and mobile apps; React and Flutter specialist.",
+    image: INSTRUCTOR_IMAGES["miguel@academy-next.test"],
     isInstructor: true,
   });
   const elenaId = await makeUser({
@@ -152,6 +157,7 @@ async function main() {
     lastName: "Petrova",
     title: "Growth Marketer",
     biography: "Scaled three startups past 1M users.",
+    image: INSTRUCTOR_IMAGES["elena@academy-next.test"],
     isInstructor: true,
   });
   const johnId = await makeUser({ email: "john@academy-next.test", firstName: "John", lastName: "Doe" });
@@ -223,7 +229,13 @@ async function main() {
   for (const def of catDefs) {
     const [parent] = await db
       .insert(categories)
-      .values({ id: crypto.randomUUID(), name: def.name, slug: slugify(def.name), order: order++ })
+      .values({
+        id: crypto.randomUUID(),
+        name: def.name,
+        slug: slugify(def.name),
+        thumbnail: CATEGORY_IMAGES[def.name] ?? null,
+        order: order++,
+      })
       .returning({ id: categories.id });
     catIds.set(def.name, parent.id);
     for (const child of def.children) {
@@ -234,6 +246,7 @@ async function main() {
           parentId: parent.id,
           name: child,
           slug: slugify(child),
+          thumbnail: CATEGORY_IMAGES[def.name] ?? null,
           order: order++,
         })
         .returning({ id: categories.id });
@@ -621,6 +634,7 @@ async function main() {
       discountEnabled: def.discountEnabled ?? false,
       discountedPrice: def.discountedPrice ?? 0,
       isTopCourse: def.isTopCourse ?? false,
+      thumbnail: COURSE_IMAGES[def.title] ?? null,
       createdByAdmin: true,
       enableDripContent: def.enableDripContent ?? false,
       promoVideoProvider: def.promo?.provider ?? null,
